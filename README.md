@@ -2,6 +2,8 @@
 
 GreenLumaPresets is a WPF .NET 8 application designed to manage and manipulate presets for GreenLuma. This project provides a user-friendly interface to import, create, rename, and delete presets and their associated App IDs.
 
+![presets](https://github.com/user-attachments/assets/4e78ca32-f696-44a7-9164-4074519f0924)
+
 ## Features
 
 - **Create Presets**: Create new presets and add App IDs.
