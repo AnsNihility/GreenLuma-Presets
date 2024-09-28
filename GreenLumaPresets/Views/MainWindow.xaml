@@ -88,7 +88,7 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid Background="#FF1B2838" Margin="20,20,20,20">
+    <Grid Background="#FF1B2838" Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" MinHeight="35"/>
             <RowDefinition/>
