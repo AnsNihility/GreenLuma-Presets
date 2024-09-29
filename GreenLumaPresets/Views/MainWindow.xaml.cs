@@ -1,5 +1,6 @@
 ﻿using GreenLumaPresets.Controllers;
 using GreenLumaPresets.Models;
+using GreenLumaPresets.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -58,15 +59,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
+    private void ImportFromSteamDBMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        greenLumaService.LoadAppList();
+        if (SelectedPreset != null)
+        {
+            ImportFromSteamWindow window = new(this);
+            window.ShowDialog();
+            if (window.AppIds.Count > 0)
+            {
+                var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, window.AppIds);
+                foreach (AppId appId in newAppIds)
+                {
+                    SelectedPreset.AppIds.Add(AppIdView.From(appId));
+                }
+            }
+        }
     }
 
-    private void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
+    private async void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        greenLumaService.LoadAppList();
+        Mouse.OverrideCursor = Cursors.Wait;
+        await greenLumaService.LoadAppList();
+        Mouse.OverrideCursor = null;
+    }
+
+    private async void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
+    {
+        Mouse.OverrideCursor = Cursors.Wait;
+        await greenLumaService.LoadAppList();
         greenLumaService.RestartSteam();
+        Mouse.OverrideCursor = null;
     }
 
     private void DeleteAppIdMenuItem_Click(object sender, RoutedEventArgs e)
@@ -87,7 +109,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 appId.IsEditing = true;
                 textBox.Focus();
-                textBox.SelectAll();
             }
         }
     }
@@ -173,6 +194,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             presetsService.RemoveAppId(SelectedPreset.Id, SelectedPreset.AppIds[selectedItem].Id);
             SelectedPreset.AppIds.RemoveAt(selectedItem);
             listBox.SelectedIndex = selectedItem;
+        }
+    }
+
+    private void ImportPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        ImportFromSteamWindow window = new(this);
+        window.ShowDialog();
+        if (window.AppIds.Count > 0 && !string.IsNullOrEmpty(window.AppName))
+        {
+            var newPreset = presetsService.AddPreset(window.AppName);
+            var newAppIds = presetsService.AddAppIds(newPreset.Id, window.AppIds);
+
+            var newPresetView = PresetView.From(newPreset, []);
+            Presets.Add(newPresetView);
+            SelectedPreset = newPresetView;
+            foreach (AppId appId in newAppIds)
+            {
+                SelectedPreset.AppIds.Add(AppIdView.From(appId));
+            }
         }
     }
 

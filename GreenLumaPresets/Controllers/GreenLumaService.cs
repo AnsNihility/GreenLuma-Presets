@@ -28,7 +28,7 @@ public class GreenLumaService
         return File.Exists(Path.Combine(pathToSteam, "User32.dll"));
     }
 
-    public void LoadAppList()
+    public async Task LoadAppList()
     {
         if (string.IsNullOrEmpty(pathToSteam)) return;
 
@@ -39,8 +39,9 @@ public class GreenLumaService
         for (int i = 0; i < appIds.Count; i++)
         {
             var appFilePath = Path.Combine(appListPath, $"{i}.txt");
-            File.WriteAllText(appFilePath, appIds[i].ToString());
+            await File.WriteAllTextAsync(appFilePath, appIds[i].ToString());
         }
+        return;
     }
 
     public void RestartSteam()
@@ -59,7 +60,7 @@ public class GreenLumaService
         {
             foreach (var existingProcess in steamProcesses)
             {
-                existingProcess.Kill();
+                existingProcess.CloseMainWindow();
             }
         }
 

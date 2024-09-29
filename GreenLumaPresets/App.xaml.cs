@@ -27,6 +27,7 @@ public partial class App : Application
         services.AddDbContext<AppDbContext>();
         services.AddTransient<PresetsService>();
         services.AddTransient<GreenLumaService>();
+        services.AddTransient<SteamService>();
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();

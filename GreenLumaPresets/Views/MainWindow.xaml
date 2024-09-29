@@ -7,88 +7,7 @@
         mc:Ignorable="d"
         Title="GreenLuma Presets" Height="450" Width="800"
         Background="#FF1B2838">
-    <Window.Resources>
-        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
-        <Style x:Key="RenameArea" TargetType="TextBox">
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsEditing}" Value="False">
-                    <Setter Property="IsReadOnly" Value="True"/>
-                    <Setter Property="Focusable" Value="False"/>
-                    <Setter Property="Cursor" Value="Arrow"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#1B2838"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#66C0F4"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="5,2"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                        BorderBrush="{TemplateBinding BorderBrush}" 
-                        BorderThickness="{TemplateBinding BorderThickness}" 
-                        CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#66C0F4"/>
-                    <Setter Property="Foreground" Value="Black"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#1B2838"/>
-                    <Setter Property="Foreground" Value="White"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="#1B2838"/>
-                    <Setter Property="Foreground" Value="Gray"/>
-                    <Setter Property="BorderBrush" Value="Gray"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="ListBox">
-            <Setter Property="Background" Value="#FF2E3B4E"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="5,7,5,7"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="VerticalAlignment" Value="Stretch"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBox">
-                        <Border Background="{TemplateBinding Background}" 
-                        BorderBrush="{TemplateBinding BorderBrush}" 
-                        BorderThickness="{TemplateBinding BorderThickness}" 
-                        CornerRadius="3">
-                            <ScrollViewer Padding="{TemplateBinding Padding}" 
-                            Margin="{TemplateBinding Margin}" 
-                            HorizontalAlignment="{TemplateBinding HorizontalAlignment}" 
-                            VerticalAlignment="{TemplateBinding VerticalAlignment}">
-                                <ItemsPresenter/>
-                            </ScrollViewer>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-    <Grid Background="#FF1B2838" Margin="10">
+    <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" MinHeight="35"/>
             <RowDefinition/>
@@ -105,9 +24,17 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="Presets" Foreground="White" FontSize="16" VerticalAlignment="Center"/>
-            <Button x:Name="AddPresetButton" Content="New preset" Width="85" Height="25" Margin="0,0,0,0" VerticalAlignment="Center" Grid.Column="1" Click="CreatePresetButton_Click"/>
+            <Button x:Name="ImportPresetButton" Content="Import" Width="55" Margin="10,0,10,0" Click="ImportPresetButton_Click" Grid.Column="1" Cursor="Hand">
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="ImportPresetContextMenu">
+                        <MenuItem Header="Import from Steam"/>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Button x:Name="AddPresetButton" Content="Add" Width="40" Margin="0,0,0,0" VerticalAlignment="Center" Grid.Column="2" Click="CreatePresetButton_Click"/>
         </Grid>
 
         <!-- Grid for title and buttons above the IDs list -->
@@ -117,19 +44,20 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding SelectedPreset.Name, StringFormat='AppIDs - {0}', FallbackValue='AppIDs'}" Foreground="White" FontSize="16" VerticalAlignment="Center"/>
-            <Button x:Name="ImportButton" Content="Import..." Width="70" Height="25" Margin="10,0,0,0" Click="ImportButton_Click" Grid.Column="1" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}">
+            <TextBlock Text="{Binding SelectedPreset.Name, StringFormat='AppIDs ({0})', FallbackValue='AppIDs'}" Foreground="White" FontSize="16" VerticalAlignment="Center"/>
+            <Button x:Name="ImportButton" Content="Import..." Width="60" Margin="10,0,0,0" Click="ImportButton_Click" Grid.Column="1" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}">
                 <Button.ContextMenu>
                     <ContextMenu x:Name="ImportContextMenu">
+                        <MenuItem Header="Import from Steam" Click="ImportFromSteamDBMenuItem_Click"/>
                         <MenuItem Header="Import from the clipboard" Click="ImportFromClipboardMenuItem_Click"/>
                     </ContextMenu>
                 </Button.ContextMenu>
             </Button>
-            <Button x:Name="AddIDButton" Content="New AppID" Width="100" Height="25" Margin="10,0,0,0" VerticalAlignment="Center" Click="CreateAppIdButton_Click"  Grid.Column="2" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
+            <Button x:Name="AddIDButton" Content="Add" Width="40" Margin="10,0,0,0" VerticalAlignment="Center" Click="CreateAppIdButton_Click"  Grid.Column="2" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
         </Grid>
 
         <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,15,0">
-            <ListBox x:Name="PresetsListBox"  ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" d:ItemsSource="{d:SampleData ItemCount=5}" >
+            <ListBox x:Name="PresetsListBox" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" d:ItemsSource="{d:SampleData ItemCount=5}" >
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <TextBox Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" Foreground="White" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
@@ -145,7 +73,7 @@
             </ListBox>
         </Grid>
 
-        <ListBox x:Name="IDsListBox" Grid.Row="1" ItemsSource="{Binding SelectedPreset.AppIds}" KeyDown="AppIdsListBox_KeyDown" Grid.Column="2">
+        <ListBox x:Name="IDsListBox" Grid.Row="1" SelectionMode="Extended" ItemsSource="{Binding SelectedPreset.AppIds}" KeyDown="AppIdsListBox_KeyDown" Grid.Column="2">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <TextBox Text="{Binding AppId}" Style="{StaticResource RenameArea}" Background="Transparent" Foreground="White" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
@@ -174,8 +102,8 @@
             <TextBlock Text="GreenLuma status :" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
             <TextBlock x:Name="StatusTextBlock" Text="{Binding GreenLumaStatus}" Foreground="{Binding GreenLumaStatusColor}" FontSize="14" VerticalAlignment="Center" Margin="5,0,0,0" Grid.Column="1"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="2">
-                <Button Content="Load preset" FontSize="13" Width="100" Height="25" Margin="10,0,0,0" Click="LoadPresetButton_Click"/>
-                <Button Content="Load and launch Steam" FontSize="13" Width="160" Height="25" Margin="10,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
+                <Button Content="Load preset" FontSize="13" Width="100" Margin="10,0,0,0" Click="LoadPresetButton_Click"/>
+                <Button Content="Load and launch Steam" FontSize="13" Width="160" Margin="10,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
             </StackPanel>
         </Grid>
     </Grid>
