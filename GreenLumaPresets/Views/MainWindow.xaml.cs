@@ -76,17 +76,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async void LoadPresetButton_Click(object sender, RoutedEventArgs e)
+    private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
         Mouse.OverrideCursor = Cursors.Wait;
-        await greenLumaService.LoadAppList();
+        if (SelectedPreset == null) return;
+        greenLumaService.LoadAppList(SelectedPreset.Id);
         Mouse.OverrideCursor = null;
     }
 
-    private async void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
+    private void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
     {
         Mouse.OverrideCursor = Cursors.Wait;
-        await greenLumaService.LoadAppList();
+        if (SelectedPreset == null) return;
+        greenLumaService.LoadAppList(SelectedPreset.Id);
         greenLumaService.RestartSteam();
         Mouse.OverrideCursor = null;
     }

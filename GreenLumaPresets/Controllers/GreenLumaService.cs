@@ -28,18 +28,21 @@ public class GreenLumaService
         return File.Exists(Path.Combine(pathToSteam, "User32.dll"));
     }
 
-    public async Task LoadAppList()
+    public void LoadAppList(Guid presetId)
     {
         if (string.IsNullOrEmpty(pathToSteam)) return;
 
         var appListPath = Path.Combine(pathToSteam, "AppList");
         ClearAppList();
 
-        var appIds = dbContext.AppIds.Select(a => a.Value).ToList();
+        var appIds = dbContext.AppIds
+            .Where(x => x.PresetId == presetId)
+            .Select(a => a.Value).ToList();
+
         for (int i = 0; i < appIds.Count; i++)
         {
             var appFilePath = Path.Combine(appListPath, $"{i}.txt");
-            await File.WriteAllTextAsync(appFilePath, appIds[i].ToString());
+            File.WriteAllText(appFilePath, appIds[i].ToString());
         }
         return;
     }
