@@ -100,7 +100,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Grid.Column="1">
-                <Button Content="Install GreenLuma" Visibility="{Binding InstallButtonVisibility}" IsEnabled="{Binding CanInstallGreenLuma}" ToolTip="Install GreenLuma from the URL given in the appsettings" FontSize="13" Width="130" Margin="0,0,0,0" Click="InstallGreenLumaButton_Click"/>
+                <Button Content="Install GreenLuma" Visibility="{Binding InstallButtonVisibility}" ToolTip="Install GreenLuma from the URL given in the appsettings" FontSize="13" Width="130" Margin="0,0,0,0" Click="InstallGreenLumaButton_Click"/>
                 <Button Content="Uninstall GreenLuma" Visibility="{Binding UninstallButtonVisibility}" ToolTip="Completely removes GreenLuma from your system" FontSize="13" Width="150" Margin="0,0,0,0" Click="UninstallGreenLumaButton_Click"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="2">

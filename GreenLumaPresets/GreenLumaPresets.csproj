@@ -13,6 +13,7 @@
   	<PublishSingleFile>true</PublishSingleFile>
   	<SelfContained>true</SelfContained>
 	<DebugType>embedded</DebugType>
+	<ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>

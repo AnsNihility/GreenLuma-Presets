@@ -8,6 +8,7 @@ using SharpCompress.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Text;
 
 namespace GreenLumaPresets.Controllers;
 
@@ -139,7 +140,49 @@ public class GreenLumaService
         }
     }
 
-    public async Task<Result> InstallGreenLuma(string greenLumaFilesUrl)
+    /// <summary>
+    /// Installs GreenLuma from a local archive containing the user32.dll and DeleteSteamAppCache.exe
+    /// </summary>
+    /// <param name="pathToArchive"></param>
+    /// <param name="addExclusion"></param>
+    public Result InstallGreenLumaOffline(string pathToArchive, bool addExclusion)
+    {
+        if (string.IsNullOrEmpty(pathToSteam))
+        {
+            logger.LogWarning("Steam path not found, cannot install GreenLuma files.");
+            return Result.Fail("Steam path not found");
+        }
+        if (string.IsNullOrEmpty(pathToArchive) || !File.Exists(pathToArchive))
+        {
+            logger.LogWarning("Archive path is empty or file does not exist, cannot proceed with installation.");
+            return Result.Fail("Archive path is empty or file does not exist");
+        }
+
+        if (addExclusion) AddExclusionOnSteamDirectory();
+
+        try
+        {
+            using var archive = ArchiveFactory.Open(pathToArchive);
+            foreach (var entry in archive.Entries)
+            {
+                if (entry.IsDirectory) continue;
+                entry.WriteToDirectory(pathToSteam, new ExtractionOptions()
+                {
+                    ExtractFullPath = true,
+                    Overwrite = true,
+                });
+            }
+            logger.LogInformation("GreenLuma files installed successfully.");
+            return Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError($"Failed to install GreenLuma files: {ex.Message}");
+            return Result.Fail($"Failed to install GreenLuma files: {ex.Message}");
+        }
+    }
+
+    public async Task<Result> InstallGreenLuma(string greenLumaFilesUrl, bool addExclusion)
     {
         if (string.IsNullOrEmpty(pathToSteam))
         {
@@ -151,6 +194,9 @@ public class GreenLumaService
             logger.LogWarning("GreenLuma files URL is empty, cannot proceed with installation.");
             return Result.Fail("GreenLuma files URL is empty");
         }
+
+        if (addExclusion) AddExclusionOnSteamDirectory();
+
         var rarFilePath = Path.Combine(pathToSteam, "downloaded.rar");
         try
         {
@@ -220,6 +266,19 @@ public class GreenLumaService
 
         logger.LogInformation("GreenLuma uninstalled successfully.");
         return Result.Ok();
+    }
+
+    // NEEDS THE ADMINISTRATOR RIGHTS TO WORK
+    private void AddExclusionOnSteamDirectory()
+    {
+        Process process = new Process();
+        process.StartInfo.FileName = "powershell";
+        process.StartInfo.Arguments = $"-inputformat none -outputformat none -NonInteractive -Command \"Add-MpPreference -ExclusionPath '{pathToSteam}' \"";
+
+        process.Start();
+        process.WaitForExit();
+
+        var code = process.ExitCode;
     }
 
     private bool TryGetSteamPath(out string path)

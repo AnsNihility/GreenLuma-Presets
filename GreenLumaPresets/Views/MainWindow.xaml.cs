@@ -5,6 +5,7 @@ using GreenLumaPresets.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -225,7 +226,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         greenLumaService.ClearAppList();
         MessageBox.Show(
-            "Loaded App IDs were cleared from Steam",
+            "Loaded App IDs were cleared from Steam.",
             "Clear IDs",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
@@ -256,20 +257,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void InstallGreenLumaButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!App.Current.Settings.CanInstallGreenLuma)
+        var canInstallGreenLuma = App.Current.Settings.CanInstallGreenLuma;
+        var useLocalGreenLumaArchive = App.Current.Settings.UseLocalGreenLumaArchive;
+
+        if (!canInstallGreenLuma && !useLocalGreenLumaArchive)
         {
             MessageBox.Show(
-                "GreenLuma files URL is not set in the configuration.",
+                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.",
                 "Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             return;
         }
-     
+
+        var response = MessageBox.Show(
+            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.",
+            "Add Exclusion?",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question)
+                .ToResult();
+
+        var shouldAddExclusion = response.Value == MessageBoxResult.OK;
+
         Mouse.OverrideCursor = Cursors.Wait;
 
-        var greenLumaDownloadUrl = App.Current.Settings.GreenLumaFilesUrlDownload ?? string.Empty;
-        var result = await greenLumaService.InstallGreenLuma(greenLumaDownloadUrl);
+        var localArchivePath = App.Current.Settings.GreenLumaArchivePath ?? string.Empty;
+        var filesUrlDownload = App.Current.Settings.GreenLumaArchiveUrl ?? string.Empty;
+
+        var result = useLocalGreenLumaArchive ? 
+            greenLumaService.InstallGreenLumaOffline(localArchivePath, shouldAddExclusion) : 
+            await greenLumaService.InstallGreenLuma(filesUrlDownload, shouldAddExclusion);
 
         MessageBox.Show(
             result.IsSuccess ? "GreenLuma has been successfully installed." : result.Errors.Single().Message,
