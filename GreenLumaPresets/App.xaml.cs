@@ -1,8 +1,10 @@
-﻿using System.Windows;
-using GreenLumaPresets.Controllers;
+﻿using GreenLumaPresets.Controllers;
 using GreenLumaPresets.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.IO;
+using System.Windows;
 
 namespace GreenLumaPresets;
 
@@ -13,10 +15,20 @@ public partial class App : Application
 {
     public new static App Current => (App)Application.Current;
     public IServiceProvider Services { get; }
+    public IConfiguration Configuration { get; set; }
+    public Settings Settings { get; private set; }
 
     public App()
     {
-        Services = ConfigureServices();
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+        this.Configuration = builder.Build();
+        this.Services = ConfigureServices();
+        this.Settings = Configuration.GetSection("Settings").Get<Settings>()
+            ?? throw new ArgumentException("Settings not found in configuration");
+
         this.InitializeComponent();
     }
 

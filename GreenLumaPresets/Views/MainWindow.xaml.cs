@@ -1,4 +1,5 @@
-﻿using GreenLumaPresets.Controllers;
+﻿using FluentResults;
+using GreenLumaPresets.Controllers;
 using GreenLumaPresets.Models;
 using GreenLumaPresets.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,12 +17,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly PresetsService presetsService;
     private readonly GreenLumaService greenLumaService;
     private PresetView? selectedPreset;
+    private bool isGreenLumaInstalled;
 
     public ObservableCollection<PresetView> Presets { get; set; }
-    public bool IsGreenLumaInstalled { get; init; }
-
-    public string GreenLumaStatus => IsGreenLumaInstalled ? "installed" : "not installed";
-    public string GreenLumaStatusColor => IsGreenLumaInstalled ? "Green" : "Red";
+    public bool IsDeleteCacheExeInstalled { get; set; }
+    public bool CanInstallGreenLuma { get; set; }
 
     public MainWindow()
     {
@@ -34,7 +34,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ?? throw new ArgumentException(nameof(greenLumaService));
 
         Presets = new(presetsService.GetPresetsWithAppIds().Select(x => PresetView.From(x.Key, x.Value)));
+
         IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
+        IsDeleteCacheExeInstalled = greenLumaService.IsDeleteCacheExeInstalled();
+        CanInstallGreenLuma = App.Current.Settings.CanInstallGreenLuma;
 
         DataContext = this;
     }
@@ -218,6 +221,92 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void ResetPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        greenLumaService.ClearAppList();
+        MessageBox.Show(
+            "Loaded App IDs were cleared from Steam",
+            "Clear IDs",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void DeleteCacheButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!IsDeleteCacheExeInstalled) return;
+
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            greenLumaService.DeleteSteamAppCache();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to clear Steam App Cache: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+
+    private async void InstallGreenLumaButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!App.Current.Settings.CanInstallGreenLuma)
+        {
+            MessageBox.Show(
+                "GreenLuma files URL is not set in the configuration.",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+     
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        var greenLumaDownloadUrl = App.Current.Settings.GreenLumaFilesUrlDownload ?? string.Empty;
+        var result = await greenLumaService.InstallGreenLuma(greenLumaDownloadUrl);
+
+        MessageBox.Show(
+            result.IsSuccess ? "GreenLuma has been successfully installed." : result.Errors.Single().Message,
+            result.IsSuccess ? "Success" : "Failed",
+            MessageBoxButton.OK,
+            result.IsSuccess ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+        if (result.IsSuccess)
+        {
+            IsGreenLumaInstalled = true;
+        }
+
+        Mouse.OverrideCursor = null;
+    }
+
+    public void UninstallGreenLumaButton_Click(object sender, RoutedEventArgs e)
+    {
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        var result = greenLumaService.UninstallGreenLuma();
+        MessageBox.Show(
+            result.IsSuccess ? "GreenLuma has been successfully uninstalled." : result.Errors.Single().Message,
+            result.IsSuccess ? "Success" : "Failed",
+            MessageBoxButton.OK,
+            result.IsSuccess ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+        if (result.IsSuccess)
+        {
+            IsGreenLumaInstalled = false;
+        }
+
+        Mouse.OverrideCursor = null;
+    }
+
+    public Visibility InstallButtonVisibility { get => IsGreenLumaInstalled ? Visibility.Collapsed : Visibility.Visible; }
+    public Visibility UninstallButtonVisibility { get => !IsGreenLumaInstalled ? Visibility.Collapsed : Visibility.Visible; }
+
     public PresetView? SelectedPreset
     {
         get => selectedPreset;
@@ -225,6 +314,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             selectedPreset = value;
             OnPropertyChanged();
+        }
+    }
+
+    public bool IsGreenLumaInstalled
+    {
+        get => isGreenLumaInstalled;
+        set
+        {
+            isGreenLumaInstalled = value;
+            IsDeleteCacheExeInstalled = greenLumaService.IsDeleteCacheExeInstalled();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(InstallButtonVisibility));
+            OnPropertyChanged(nameof(UninstallButtonVisibility));
+            OnPropertyChanged(nameof(IsDeleteCacheExeInstalled));
         }
     }
 
