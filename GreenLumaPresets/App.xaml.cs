@@ -27,7 +27,7 @@ public partial class App : Application
         this.Configuration = builder.Build();
         this.Services = ConfigureServices();
         this.Settings = Configuration.GetSection("Settings").Get<Settings>()
-            ?? throw new ArgumentException("Settings not found in configuration");
+            ?? new Settings();
 
         this.InitializeComponent();
     }
