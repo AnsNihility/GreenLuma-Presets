@@ -99,10 +99,15 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="GreenLuma status :" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
-            <TextBlock x:Name="StatusTextBlock" Text="{Binding GreenLumaStatus}" Foreground="{Binding GreenLumaStatusColor}" FontSize="14" VerticalAlignment="Center" Margin="5,0,0,0" Grid.Column="1"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Grid.Column="1">
+                <Button Content="Install GreenLuma" Visibility="{Binding InstallButtonVisibility}" IsEnabled="{Binding CanInstallGreenLuma}" ToolTip="Install GreenLuma from the URL given in the appsettings" FontSize="13" Width="130" Margin="0,0,0,0" Click="InstallGreenLumaButton_Click"/>
+                <Button Content="Uninstall GreenLuma" Visibility="{Binding UninstallButtonVisibility}" ToolTip="Completely removes GreenLuma from your system" FontSize="13" Width="150" Margin="0,0,0,0" Click="UninstallGreenLumaButton_Click"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="2">
-                <Button Content="Load preset" FontSize="13" Width="100" Margin="10,0,0,0" Click="LoadPresetButton_Click"/>
+                <Button Content="Delete cache" IsEnabled="{Binding IsDeleteCacheExeInstalled}" ToolTip="Can only be used when DeleteSteamCache.exe exists in the same folder" FontSize="13" Width="100" Margin="0,0,0,0" Click="DeleteCacheButton_Click"/>
+                <Button Content="Clear IDs" ToolTip="Clears loaded App IDs from Steam: Games unlocked with GreenLuma can't be updated so use this button when there's an update on one of the unlocked apps" FontSize="13" Width="80" Margin="10,0,10,0" Click="ResetPresetButton_Click"/>
+                <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
+                <Button Content="Load" FontSize="13" Width="60" Margin="10,0,0,0" Click="LoadPresetButton_Click"/>
                 <Button Content="Load and launch Steam" FontSize="13" Width="160" Margin="10,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
             </StackPanel>
         </Grid>
