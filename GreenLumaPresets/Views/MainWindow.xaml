@@ -4,11 +4,71 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:GreenLumaPresets" xmlns:converters="clr-namespace:GreenLumaPresets.Views.Converters"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="GreenLuma Presets" Height="450" Width="800"
-        Background="#FF1B2838">
-    <Grid Margin="10">
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Background="{DynamicResource SteamWindowBackground}">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="32"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Window.Resources>
+        <Style x:Key="TitleBarButton" TargetType="Button">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Margin" Value="1,0,1,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Background" Value="{DynamicResource SteamButtonBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamText}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Border x:Name="TopLeftHighlight" 
+                                    BorderBrush="{DynamicResource SteamButtonHighlight}" 
+                                    BorderThickness="1,1,0,0" 
+                                    Opacity="0.45"/>
+                            <Border x:Name="BottomRightShadow" 
+                                    BorderBrush="{DynamicResource SteamButtonShadow}" 
+                                    BorderThickness="0,0,1,1" 
+                                    Opacity="0.7"/>
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center" 
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.2"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Border BorderBrush="{DynamicResource SteamButtonHighlight}"
+                BorderThickness="1,1,0,0"
+                Opacity="0.6"/>
+        <Border BorderBrush="{DynamicResource SteamButtonShadow}"
+                BorderThickness="0,0,1,1"
+                Opacity="0.8"/>
+        <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
             <RowDefinition Height="Auto" MinHeight="35"/>
             <RowDefinition/>
             <RowDefinition Height="Auto"/>
@@ -19,48 +79,67 @@
             <ColumnDefinition Width="2*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Grid for title and buttons above the presets list -->
-        <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,15,10">
+          <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8" Background="{DynamicResource SteamWindowBackground}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="Presets" Foreground="White" FontSize="16" VerticalAlignment="Center"/>
-            <Button x:Name="ImportPresetButton" Content="Import" Width="55" Margin="10,0,10,0" Click="ImportPresetButton_Click" Grid.Column="1" Cursor="Hand">
-                <Button.ContextMenu>
-                    <ContextMenu x:Name="ImportPresetContextMenu">
-                        <MenuItem Header="Import from Steam"/>
-                    </ContextMenu>
-                </Button.ContextMenu>
-            </Button>
-            <Button x:Name="AddPresetButton" Content="Add" Width="40" Margin="0,0,0,0" VerticalAlignment="Center" Grid.Column="2" Click="CreatePresetButton_Click"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                        MouseRightButtonUp="TitleBar_MouseRightButtonUp">
+                <TextBlock Text="GreenLuma Presets" VerticalAlignment="Center" FontSize="13"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource TitleBarButton}" 
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="MinimizeButton_Click"
+                        Content="_"/>
+                <Button Style="{StaticResource TitleBarButton}" 
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="MaximizeButton_Click"
+                        Content="▢"/>
+                <Button Style="{StaticResource TitleBarButton}" 
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="CloseButton_Click"
+                        Content="X"/>
+            </StackPanel>
         </Grid>
 
-        <!-- Grid for title and buttons above the IDs list -->
-        <Grid Grid.Row="0" Margin="0,0,0,10" Grid.Column="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding SelectedPreset.Name, StringFormat='AppIDs ({0})', FallbackValue='AppIDs'}" Foreground="White" FontSize="16" VerticalAlignment="Center"/>
-            <Button x:Name="ImportButton" Content="Import..." Width="60" Margin="10,0,0,0" Click="ImportButton_Click" Grid.Column="1" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}">
-                <Button.ContextMenu>
-                    <ContextMenu x:Name="ImportContextMenu">
-                        <MenuItem Header="Import from Steam" Click="ImportFromSteamDBMenuItem_Click"/>
-                        <MenuItem Header="Import from the clipboard" Click="ImportFromClipboardMenuItem_Click"/>
-                    </ContextMenu>
-                </Button.ContextMenu>
-            </Button>
-            <Button x:Name="AddIDButton" Content="Add" Width="40" Margin="10,0,0,0" VerticalAlignment="Center" Click="CreateAppIdButton_Click"  Grid.Column="2" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
+        <Grid Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="3">
+            <Border BorderBrush="{DynamicResource SteamButtonHighlight}"
+                    BorderThickness="1,1,0,0"
+                    Opacity="0.5"/>
+            <Border BorderBrush="{DynamicResource SteamButtonShadow}"
+                    BorderThickness="0,0,1,1"
+                    Opacity="0.7"/>
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+
+        <!-- Grid for title above the presets list -->
+        <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
+            <TextBlock Text="Presets" FontSize="13" VerticalAlignment="Center"/>
         </Grid>
 
-        <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,15,0">
+        <!-- Grid for title above the IDs list -->
+        <Grid Grid.Row="0" Grid.Column="2" Margin="0,0,0,10">
+            <TextBlock Text="{Binding SelectedPreset.Name, StringFormat='AppIDs ({0})', FallbackValue='AppIDs'}" FontSize="13" VerticalAlignment="Center"/>
+        </Grid>
+
+        <Grid Grid.Row="1" Grid.Column="0">
             <ListBox x:Name="PresetsListBox" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" d:ItemsSource="{d:SampleData ItemCount=5}" >
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <TextBox Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" Foreground="White" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
+                        <TextBox Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
                             <TextBox.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Rename" Click="RenamePresetMenuItem_Click"/>
@@ -73,10 +152,10 @@
             </ListBox>
         </Grid>
 
-        <ListBox x:Name="IDsListBox" Grid.Row="1" SelectionMode="Extended" ItemsSource="{Binding SelectedPreset.AppIds}" KeyDown="AppIdsListBox_KeyDown" Grid.Column="2">
+        <ListBox x:Name="IDsListBox" Grid.Row="1" Grid.Column="2" SelectionMode="Extended" ItemsSource="{Binding SelectedPreset.AppIds}" KeyDown="AppIdsListBox_KeyDown">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBox Text="{Binding AppId}" Style="{StaticResource RenameArea}" Background="Transparent" Foreground="White" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
+                    <TextBox Text="{Binding AppId}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
                         <TextBox.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Rename" Click="RenameAppIdMenuItem_Click"/>
@@ -87,29 +166,57 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
             <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
+                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                     <Setter Property="HorizontalAlignment" Value="Stretch"/>
                 </Style>
             </ListBox.ItemContainerStyle>
         </ListBox>
 
-        <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
+        <!-- Grid for buttons below the presets list -->
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="ImportPresetButton" Content="Import" Margin="0,0,5,0" Click="ImportPresetButton_Click" Cursor="Hand">
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="ImportPresetContextMenu">
+                        <MenuItem Header="Import from Steam"/>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Button x:Name="AddPresetButton" Content="Add" VerticalAlignment="Center" Click="CreatePresetButton_Click"/>
+        </StackPanel>
+
+        <!-- Grid for buttons below the IDs list -->
+        <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="ImportButton" Content="Import..." Margin="0,0,5,0" Click="ImportButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}">
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="ImportContextMenu">
+                        <MenuItem Header="Import from Steam" Click="ImportFromSteamDBMenuItem_Click"/>
+                        <MenuItem Header="Import from the clipboard" Click="ImportFromClipboardMenuItem_Click"/>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Button x:Name="AddIDButton" Content="Add" VerticalAlignment="Center" Click="CreateAppIdButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
+        </StackPanel>
+            </Grid>
+        </Grid>
+
+        <Grid Grid.Row="4" Grid.ColumnSpan="2" Margin="0,10,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Grid.Column="1">
-                <Button Content="Install GreenLuma" Visibility="{Binding InstallButtonVisibility}" ToolTip="Install GreenLuma from the URL given in the appsettings" FontSize="13" Width="130" Margin="0,0,0,0" Click="InstallGreenLumaButton_Click"/>
-                <Button Content="Uninstall GreenLuma" Visibility="{Binding UninstallButtonVisibility}" ToolTip="Completely removes GreenLuma from your system" FontSize="13" Width="150" Margin="0,0,0,0" Click="UninstallGreenLumaButton_Click"/>
+                <Button Content="Install GreenLuma" Visibility="{Binding InstallButtonVisibility}" ToolTip="Install GreenLuma from the URL given in the appsettings" Margin="0,0,5,0" Click="InstallGreenLumaButton_Click"/>
+                <Button Content="Uninstall GreenLuma" Visibility="{Binding UninstallButtonVisibility}" ToolTip="Completely removes GreenLuma from your system" Click="UninstallGreenLumaButton_Click"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="2">
-                <Button Content="Delete cache" IsEnabled="{Binding IsDeleteCacheExeInstalled}" ToolTip="Can only be used when DeleteSteamCache.exe exists in the same folder" FontSize="13" Width="100" Margin="0,0,0,0" Click="DeleteCacheButton_Click"/>
-                <Button Content="Clear IDs" ToolTip="Clears loaded App IDs from Steam: Games unlocked with GreenLuma can't be updated so use this button when there's an update on one of the unlocked apps" FontSize="13" Width="80" Margin="10,0,10,0" Click="ResetPresetButton_Click"/>
+                <Button Content="Delete cache" IsEnabled="{Binding IsDeleteCacheExeInstalled}" ToolTip="Can only be used when DeleteSteamCache.exe exists in the same folder" Margin="0,0,5,0" Click="DeleteCacheButton_Click"/>
+                <Button Content="Clear IDs" ToolTip="Clears loaded App IDs from Steam: Games unlocked with GreenLuma can't be updated so use this button when there's an update on one of the unlocked apps" Margin="5,0,5,0" Click="ResetPresetButton_Click"/>
                 <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
-                <Button Content="Load" FontSize="13" Width="60" Margin="10,0,0,0" Click="LoadPresetButton_Click"/>
-                <Button Content="Load and launch Steam" FontSize="13" Width="160" Margin="10,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
+                <Button Content="Load" Margin="5,0,0,0" Click="LoadPresetButton_Click"/>
+                <Button Content="Load and launch Steam" Margin="5,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
             </StackPanel>
+        </Grid>
         </Grid>
     </Grid>
 </Window>
