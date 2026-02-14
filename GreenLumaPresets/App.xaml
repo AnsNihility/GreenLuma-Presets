@@ -67,7 +67,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Padding" Value="12,2"/>
-            <Setter Property="Margin" Value="4,2"/>
+            <Setter Property="Margin" Value="5,2"/>
             <Setter Property="Height" Value="23"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
