@@ -26,11 +26,18 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
     {
         string text = AppIdTextBox.Text;
 
+        // Clear placeholder if it still shows
+        if (text == "e.g., 730")
+        {
+            text = "";
+        }
+
         Mouse.OverrideCursor = Cursors.Wait;
 
         if (string.IsNullOrEmpty(text) || !int.TryParse(text, out int appId))
         {
             ErrorMessage = "The provided AppID is not valid";
+            Mouse.OverrideCursor = null;
             return;
         }
 
@@ -51,6 +58,48 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
     private void CancelButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            return; // No double-click action for non-resizable window
+        }
+
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
+
+    private void TitleBar_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var screenPoint = PointToScreen(e.GetPosition(this));
+        SystemCommands.ShowSystemMenu(this, screenPoint);
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void AppIdTextBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (AppIdTextBox.Text == "e.g., 730")
+        {
+            AppIdTextBox.Text = "";
+            AppIdTextBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(230, 242, 213)); // SteamText color
+        }
+    }
+
+    private void AppIdTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(AppIdTextBox.Text))
+        {
+            AppIdTextBox.Text = "e.g., 730";
+            AppIdTextBox.Foreground = (System.Windows.Media.Brush)App.Current.Resources["SteamMutedText"];
+        }
     }
 
     public List<string> AppIds { get; set; } = [];

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<item>
+  <!-- Version number of the release -->
+  <version>1.3.0.0</version>
+  
+  <!-- Direct download URL to the release executable -->
+  <!-- Replace with your actual GitHub release URL, e.g., -->
+  <url>https://github.com/AnsNihility/GreenLuma-Presets/releases/download/v1.3.0/GreenLumaPresets-v1.3.0-win-x64.zip</url>
+  
+  <!-- Changelog shown to users -->
+  <changelog>https://github.com/AnsNihility/GreenLuma-Presets/releases</changelog>
+  
+  <!-- Set to true to force update (users can't skip) -->
+  <mandatory>false</mandatory>
+</item>
