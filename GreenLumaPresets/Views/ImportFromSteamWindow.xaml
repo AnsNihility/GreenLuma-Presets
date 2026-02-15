@@ -89,7 +89,7 @@
                             shell:WindowChrome.IsHitTestVisibleInChrome="True"
                             MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
                             MouseRightButtonUp="TitleBar_MouseRightButtonUp">
-                    <TextBlock Text="Enter Steam AppID to proceed" Margin="0,0,15,0" VerticalAlignment="Center" FontSize="13"/>
+                    <TextBlock Text="Enter Steam AppID or search by name" Margin="0,0,15,0" VerticalAlignment="Center" FontSize="13"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Style="{StaticResource TitleBarButton}" 
@@ -99,7 +99,37 @@
                 </StackPanel>
             </Grid>
 
-            <TextBox x:Name="AppIdTextBox" Grid.Row="2" Margin="0,0,0,5" Text="e.g., 730" Foreground="{DynamicResource SteamMutedText}" GotFocus="AppIdTextBox_GotFocus" LostFocus="AppIdTextBox_LostFocus"/>
+            <Grid Grid.Row="1" Margin="0,0,0,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Search by name" Padding="0"/>
+                <TextBox x:Name="AppNameTextBox" Grid.Row="1" Grid.Column="0" Margin="0,0,5,5" Text="e.g., Counter-Strike 2" Foreground="{DynamicResource SteamMutedText}" GotFocus="AppNameTextBox_GotFocus" LostFocus="AppNameTextBox_LostFocus"/>
+                <Button Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" Content="Search" Click="SearchButton_Click"/>
+                <ListBox x:Name="SearchResultsListBox" Grid.Row="2" Grid.ColumnSpan="2" MinHeight="80" MaxHeight="160" ItemsSource="{Binding SearchResults}" SelectionChanged="SearchResultsListBox_SelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Name}"/>
+                                <TextBlock Text=" ("/>
+                                <TextBlock Text="{Binding AppId}"/>
+                                <TextBlock Text=")"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Margin="0,0,0,5">
+                <Label Content="AppID" Padding="0"/>
+                <TextBox x:Name="AppIdTextBox" Text="e.g., 730" Foreground="{DynamicResource SteamMutedText}" GotFocus="AppIdTextBox_GotFocus" LostFocus="AppIdTextBox_LostFocus"/>
+            </StackPanel>
             <Label Content="{Binding ErrorMessage, Mode=OneWay}" Grid.Row="3" Foreground="Red" Padding="0" FontSize="10" Margin="0,0,0,10"/>
             <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
                 <Button Content="OK" Margin="0,0,0,0" Click="OkButton_Click"/>

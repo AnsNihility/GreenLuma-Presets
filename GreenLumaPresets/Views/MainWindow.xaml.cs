@@ -429,4 +429,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             "About GreenLuma Presets",
             $"GreenLuma Presets Manager\n\nVersion: {version}\n\nA tool to manage GreenLuma presets and AppIDs.");
     }
+
+    private void TutorialMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        const string tutorialMessage = @"Before starting let me explain some basics:
+- GreenLuma: a tool that allows you to unlock apps in Steam by loading the list of AppIDs you want to unlock
+- AppID: a unique identifier for each game and DLCs in Steam
+- Preset: a collection of AppIDs that can be loaded into GreenLuma
+
+Quick start:
+1) Create a preset: You have two options to create a preset
+   - Create empty preset: click Add below the presets list to create a new preset with no AppIDs
+   - Import preset from Steam: click Import and enter the AppID of a game to import all its DLCs as a preset. You can find the AppID on the game's SteamDB page. For example, the AppID for Portal 2 is 620, so entering 620 will import a preset with all Portal 2 DLCs.
+2) Add AppIDs: You also have two options to add AppIDs to an existing preset
+   - Add single AppID: click Add below the AppIDs list to add a new AppID with value 0 that you can edit. You can find the AppID of a game or DLC on its SteamDB page.
+   - Import AppIDs from Steam: click Import and then click on Import from Steam. Enter the AppID of a game to import all its DLCs as AppIDs into the selected preset.
+   - Import AppIDs from clipboard: copy a list of AppIDs to the clipboard and click Import, then click on Import from clipboard and it will add all AppIDs from the clipboard to the selected preset. This is useful if you want to import a list of AppIDs from a text file or a website. Just make sure to copy only the AppIDs, one per line, without any additional text.
+3) Load and launch: use Load and launch Steam to restart Steam with the selected preset.
+
+Tips:
+- Right-click a preset or AppID to rename or delete.
+- Clear IDs from GreenLuma removes the current AppList in Steam.
+- Check for Updates is under Help.";
+
+        dialogService.ShowInformation("Tutorial", tutorialMessage);
+    }
 }
