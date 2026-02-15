@@ -17,6 +17,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly PresetsService presetsService;
     private readonly GreenLumaService greenLumaService;
+    private readonly UpdateService updateService;
     private PresetView? selectedPreset;
     private bool isGreenLumaInstalled;
 
@@ -33,6 +34,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         greenLumaService = App.Current.Services.GetService<GreenLumaService>() 
             ?? throw new ArgumentException(nameof(greenLumaService));
+
+        updateService = App.Current.Services.GetService<UpdateService>()
+            ?? throw new ArgumentException(nameof(updateService));
 
         Presets = new(presetsService.GetPresetsWithAppIds().Select(x => PresetView.From(x.Key, x.Value)));
 
@@ -409,5 +413,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private void CheckForUpdatesMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        updateService.CheckForUpdates(showNoUpdateMessage: true);
+    }
+
+    private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var version = updateService.GetCurrentVersion();
+        MessageBox.Show(
+            $"GreenLuma Presets Manager\n\nVersion: {version}\n\nA tool to manage GreenLuma presets and AppIDs.",
+            "About GreenLuma Presets",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 }

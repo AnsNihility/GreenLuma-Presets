@@ -32,6 +32,15 @@ public partial class App : Application
         this.InitializeComponent();
     }
 
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        // Check for updates on startup (silently, without "no update" message)
+        var updateService = Services.GetService<UpdateService>();
+        updateService?.CheckForUpdates(showNoUpdateMessage: false);
+    }
+
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
@@ -40,6 +49,7 @@ public partial class App : Application
         services.AddTransient<PresetsService>();
         services.AddTransient<GreenLumaService>();
         services.AddTransient<SteamService>();
+        services.AddTransient<UpdateService>();
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();
