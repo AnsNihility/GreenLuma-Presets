@@ -111,7 +111,7 @@
         <!-- Menu Bar -->
         <Menu Grid.Row="1" Grid.ColumnSpan="2" Background="{DynamicResource SteamWindowBackground}" Foreground="{DynamicResource SteamText}" Height="24" VerticalAlignment="Top"
               shell:WindowChrome.IsHitTestVisibleInChrome="True">
-            <MenuItem Header="_GreenLuma">
+            <MenuItem Header="_GreenLuma ▾">
                 <MenuItem Header="{Binding InstallUninstallMenuText}" Click="InstallUninstallGreenLumaMenuItem_Click"/>
                 <MenuItem Header="_Delete Steam cache" Click="DeleteCacheButton_Click" IsEnabled="{Binding IsDeleteCacheExeInstalled}"/>
                 <MenuItem Header="_Clear IDs from GreenLuma" Click="ResetPresetButton_Click"/>
@@ -213,8 +213,8 @@
 
         <Grid Grid.Row="4" Grid.ColumnSpan="2" Margin="0,10,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Load" Margin="0,0,0,0" Click="LoadPresetButton_Click"/>
-                <Button Content="Load and launch Steam" Margin="5,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
+                <Button Content="Load" Margin="0,0,0,0" Click="LoadPresetButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="Load and launch Steam" Margin="5,0,0,0" Click="LoadAndLaunchSteamButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
             </StackPanel>
         </Grid>
         </Grid>
