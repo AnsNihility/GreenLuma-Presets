@@ -99,8 +99,10 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.2"/>
-                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="TopLeftHighlight" Property="BorderBrush" Value="{DynamicResource SteamButtonShadow}"/>
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.7"/>
+                                <Setter TargetName="BottomRightShadow" Property="BorderBrush" Value="{DynamicResource SteamButtonHighlight}"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -215,6 +217,11 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style TargetType="Menu">
+            <Setter Property="Background" Value="{DynamicResource SteamWindowBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamText}"/>
+        </Style>
+
         <Style TargetType="MenuItem">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SteamText}"/>
@@ -222,30 +229,45 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
-                        <Border x:Name="MenuItemBorder"
-                                Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="Header"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="MenuItemBorder"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+                            </Border>
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border Background="{DynamicResource SteamMenuBackground}"
+                                        BorderBrush="{DynamicResource SteamButtonShadow}"
+                                        BorderThickness="1"
+                                        Padding="0,2">
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource SteamMutedText}"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="MenuItemBorder" Property="Background" Value="{DynamicResource SteamSelectionHover}"/>
                             </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="{DynamicResource SteamMutedText}"/>
-                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsHighlighted" Value="True"/>
+                                    <Condition Property="IsEnabled" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="MenuItemBorder" Property="Background" Value="Transparent"/>
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource SteamSelectionHover}"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Foreground" Value="{DynamicResource SteamMutedText}"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
     </Application.Resources>
 </Application>

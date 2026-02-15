@@ -363,8 +363,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Mouse.OverrideCursor = null;
     }
 
+    private void InstallUninstallGreenLumaMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (IsGreenLumaInstalled)
+        {
+            UninstallGreenLumaButton_Click(sender, e);
+        }
+        else
+        {
+            InstallGreenLumaButton_Click(sender, e);
+        }
+    }
+
     public Visibility InstallButtonVisibility { get => IsGreenLumaInstalled ? Visibility.Collapsed : Visibility.Visible; }
     public Visibility UninstallButtonVisibility { get => !IsGreenLumaInstalled ? Visibility.Collapsed : Visibility.Visible; }
+    public string InstallUninstallMenuText { get => IsGreenLumaInstalled ? "_Uninstall GreenLuma" : "_Install GreenLuma"; }
 
     public PresetView? SelectedPreset
     {
@@ -386,6 +399,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(InstallButtonVisibility));
             OnPropertyChanged(nameof(UninstallButtonVisibility));
+            OnPropertyChanged(nameof(InstallUninstallMenuText));
             OnPropertyChanged(nameof(IsDeleteCacheExeInstalled));
         }
     }

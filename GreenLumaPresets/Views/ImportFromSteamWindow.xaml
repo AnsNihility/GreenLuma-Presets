@@ -53,8 +53,10 @@
                                 <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.85"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.2"/>
-                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="TopLeftHighlight" Property="BorderBrush" Value="{DynamicResource SteamButtonShadow}"/>
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.7"/>
+                                <Setter TargetName="BottomRightShadow" Property="BorderBrush" Value="{DynamicResource SteamButtonHighlight}"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

@@ -50,8 +50,10 @@
                                 <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.85"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.2"/>
-                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="TopLeftHighlight" Property="BorderBrush" Value="{DynamicResource SteamButtonShadow}"/>
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.7"/>
+                                <Setter TargetName="BottomRightShadow" Property="BorderBrush" Value="{DynamicResource SteamButtonHighlight}"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -106,7 +108,17 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="3">
+        <!-- Menu Bar -->
+        <Menu Grid.Row="1" Grid.ColumnSpan="2" Background="{DynamicResource SteamWindowBackground}" Foreground="{DynamicResource SteamText}" Height="24" VerticalAlignment="Top"
+              shell:WindowChrome.IsHitTestVisibleInChrome="True">
+            <MenuItem Header="_GreenLuma">
+                <MenuItem Header="{Binding InstallUninstallMenuText}" Click="InstallUninstallGreenLumaMenuItem_Click"/>
+                <MenuItem Header="_Delete Steam cache" Click="DeleteCacheButton_Click" IsEnabled="{Binding IsDeleteCacheExeInstalled}"/>
+                <MenuItem Header="_Clear IDs from GreenLuma" Click="ResetPresetButton_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <Grid Grid.Row="2" Grid.ColumnSpan="3">
             <Border BorderBrush="{DynamicResource SteamButtonHighlight}"
                     BorderThickness="1,1,0,0"
                     Opacity="0.5"/>
@@ -200,20 +212,8 @@
         </Grid>
 
         <Grid Grid.Row="4" Grid.ColumnSpan="2" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Grid.Column="1">
-                <Button Content="Install GreenLuma" Visibility="{Binding InstallButtonVisibility}" ToolTip="Install GreenLuma from the URL given in the appsettings" Margin="0,0,5,0" Click="InstallGreenLumaButton_Click"/>
-                <Button Content="Uninstall GreenLuma" Visibility="{Binding UninstallButtonVisibility}" ToolTip="Completely removes GreenLuma from your system" Click="UninstallGreenLumaButton_Click"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="2">
-                <Button Content="Delete cache" IsEnabled="{Binding IsDeleteCacheExeInstalled}" ToolTip="Can only be used when DeleteSteamCache.exe exists in the same folder" Margin="0,0,0,0" Click="DeleteCacheButton_Click"/>
-                <Button Content="Clear IDs" ToolTip="Clears loaded App IDs from Steam: Games unlocked with GreenLuma can't be updated so use this button when there's an update on one of the unlocked apps" Margin="5,0,5,0" Click="ResetPresetButton_Click"/>
-                <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
-                <Button Content="Load" Margin="5,0,0,0" Click="LoadPresetButton_Click"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Load" Margin="0,0,0,0" Click="LoadPresetButton_Click"/>
                 <Button Content="Load and launch Steam" Margin="5,0,0,0" Click="LoadAndLaunchSteamButton_Click"/>
             </StackPanel>
         </Grid>
