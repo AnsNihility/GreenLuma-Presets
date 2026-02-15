@@ -1,6 +1,7 @@
 ﻿using FluentResults;
 using GreenLumaPresets.Controllers;
 using GreenLumaPresets.Models;
+using GreenLumaPresets.Services;
 using GreenLumaPresets.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
@@ -18,6 +19,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly PresetsService presetsService;
     private readonly GreenLumaService greenLumaService;
     private readonly UpdateService updateService;
+    private readonly IDialogService dialogService;
     private PresetView? selectedPreset;
     private bool isGreenLumaInstalled;
 
@@ -37,6 +39,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         updateService = App.Current.Services.GetService<UpdateService>()
             ?? throw new ArgumentException(nameof(updateService));
+
+        dialogService = App.Current.Services.GetService<IDialogService>()
+            ?? throw new ArgumentException(nameof(dialogService));
 
         Presets = new(presetsService.GetPresetsWithAppIds().Select(x => PresetView.From(x.Key, x.Value)));
 
@@ -271,11 +276,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ResetPresetButton_Click(object sender, RoutedEventArgs e)
     {
         greenLumaService.ClearAppList();
-        MessageBox.Show(
-            "Loaded App IDs were cleared from Steam.",
+        dialogService.ShowInformation(
             "Clear IDs",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            "Loaded App IDs were cleared from Steam.");
     }
 
     private void DeleteCacheButton_Click(object sender, RoutedEventArgs e)
@@ -289,11 +292,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                $"Failed to clear Steam App Cache: {ex.Message}",
+            dialogService.ShowError(
                 "Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                $"Failed to clear Steam App Cache: {ex.Message}");
         }
         finally
         {
@@ -308,22 +309,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (!canInstallGreenLuma && !useLocalGreenLumaArchive)
         {
-            MessageBox.Show(
-                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.",
+            dialogService.ShowError(
                 "Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.");
             return;
         }
 
-        var response = MessageBox.Show(
-            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.",
+        var response = dialogService.ShowQuestion(
             "Add Exclusion?",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question)
-                .ToResult();
+            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.");
 
-        var shouldAddExclusion = response.Value == MessageBoxResult.OK;
+        var shouldAddExclusion = response == MessageBoxResult.Yes;
 
         Mouse.OverrideCursor = Cursors.Wait;
 
@@ -334,11 +330,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             greenLumaService.InstallGreenLumaOffline(localArchivePath, shouldAddExclusion) : 
             await greenLumaService.InstallGreenLuma(filesUrlDownload, shouldAddExclusion);
 
-        MessageBox.Show(
-            result.IsSuccess ? "GreenLuma has been successfully installed." : result.Errors.Single().Message,
-            result.IsSuccess ? "Success" : "Failed",
-            MessageBoxButton.OK,
-            result.IsSuccess ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        if (result.IsSuccess)
+        {
+            dialogService.ShowInformation("Success", "GreenLuma has been successfully installed.");
+        }
+        else
+        {
+            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
+        }
 
         if (result.IsSuccess)
         {
@@ -353,11 +352,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Mouse.OverrideCursor = Cursors.Wait;
 
         var result = greenLumaService.UninstallGreenLuma();
-        MessageBox.Show(
-            result.IsSuccess ? "GreenLuma has been successfully uninstalled." : result.Errors.Single().Message,
-            result.IsSuccess ? "Success" : "Failed",
-            MessageBoxButton.OK,
-            result.IsSuccess ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        if (result.IsSuccess)
+        {
+            dialogService.ShowInformation("Success", "GreenLuma has been successfully uninstalled.");
+        }
+        else
+        {
+            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
+        }
 
         if (result.IsSuccess)
         {
@@ -423,10 +425,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var version = updateService.GetCurrentVersion();
-        MessageBox.Show(
-            $"GreenLuma Presets Manager\n\nVersion: {version}\n\nA tool to manage GreenLuma presets and AppIDs.",
+        dialogService.ShowInformation(
             "About GreenLuma Presets",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            $"GreenLuma Presets Manager\n\nVersion: {version}\n\nA tool to manage GreenLuma presets and AppIDs.");
     }
 }
