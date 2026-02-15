@@ -1,5 +1,6 @@
 ﻿using GreenLumaPresets.Controllers;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -11,6 +12,8 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
 {
     private readonly SteamService steamDbService;
     private string? errorMessage;
+    private const string AppIdPlaceholder = "e.g., 730";
+    private const string AppNamePlaceholder = "e.g., Counter-Strike 2";
 
     public ImportFromSteamWindow(Window owner)
     {
@@ -27,7 +30,7 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
         string text = AppIdTextBox.Text;
 
         // Clear placeholder if it still shows
-        if (text == "e.g., 730")
+        if (text == AppIdPlaceholder)
         {
             text = "";
         }
@@ -53,6 +56,45 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
         }
 
         ErrorMessage = appDataResult.Errors.FirstOrDefault()?.Message;
+    }
+
+    private async void SearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        string text = AppNameTextBox.Text;
+
+        if (text == AppNamePlaceholder)
+        {
+            text = "";
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            ErrorMessage = "Enter an app name to search";
+            return;
+        }
+
+        ErrorMessage = null;
+        SearchResults.Clear();
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        var searchResult = await steamDbService.SearchAppsByName(text);
+        Mouse.OverrideCursor = null;
+
+        if (!searchResult.IsSuccess)
+        {
+            ErrorMessage = searchResult.Errors.FirstOrDefault()?.Message;
+            return;
+        }
+
+        foreach (var item in searchResult.Value)
+        {
+            SearchResults.Add(item);
+        }
+
+        if (SearchResults.Count == 0)
+        {
+            ErrorMessage = "No results found";
+        }
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e)
@@ -86,7 +128,7 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
 
     private void AppIdTextBox_GotFocus(object sender, RoutedEventArgs e)
     {
-        if (AppIdTextBox.Text == "e.g., 730")
+        if (AppIdTextBox.Text == AppIdPlaceholder)
         {
             AppIdTextBox.Text = "";
             AppIdTextBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(230, 242, 213)); // SteamText color
@@ -97,13 +139,46 @@ public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
     {
         if (string.IsNullOrEmpty(AppIdTextBox.Text))
         {
-            AppIdTextBox.Text = "e.g., 730";
+            AppIdTextBox.Text = AppIdPlaceholder;
             AppIdTextBox.Foreground = (System.Windows.Media.Brush)App.Current.Resources["SteamMutedText"];
         }
     }
 
+    private void AppNameTextBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (AppNameTextBox.Text == AppNamePlaceholder)
+        {
+            AppNameTextBox.Text = "";
+            AppNameTextBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(230, 242, 213)); // SteamText color
+        }
+    }
+
+    private void AppNameTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(AppNameTextBox.Text))
+        {
+            AppNameTextBox.Text = AppNamePlaceholder;
+            AppNameTextBox.Foreground = (System.Windows.Media.Brush)App.Current.Resources["SteamMutedText"];
+        }
+    }
+
+    private void SearchResultsListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (SearchResultsListBox.SelectedItem is SteamSearchResult selected)
+        {
+            SetAppIdText(selected.AppId.ToString());
+        }
+    }
+
+    private void SetAppIdText(string appId)
+    {
+        AppIdTextBox.Text = appId;
+        AppIdTextBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(230, 242, 213)); // SteamText color
+    }
+
     public List<string> AppIds { get; set; } = [];
     public string AppName { get; set; } = string.Empty;
+    public ObservableCollection<SteamSearchResult> SearchResults { get; } = [];
 
     public string? ErrorMessage
     {

@@ -1,6 +1,7 @@
 ﻿using FluentResults;
 using GreenLumaPresets.Controllers;
 using GreenLumaPresets.Models;
+using GreenLumaPresets.Services;
 using GreenLumaPresets.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
@@ -18,6 +19,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly PresetsService presetsService;
     private readonly GreenLumaService greenLumaService;
     private readonly UpdateService updateService;
+    private readonly IDialogService dialogService;
     private PresetView? selectedPreset;
     private bool isGreenLumaInstalled;
 
@@ -37,6 +39,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         updateService = App.Current.Services.GetService<UpdateService>()
             ?? throw new ArgumentException(nameof(updateService));
+
+        dialogService = App.Current.Services.GetService<IDialogService>()
+            ?? throw new ArgumentException(nameof(dialogService));
 
         Presets = new(presetsService.GetPresetsWithAppIds().Select(x => PresetView.From(x.Key, x.Value)));
 
@@ -271,11 +276,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ResetPresetButton_Click(object sender, RoutedEventArgs e)
     {
         greenLumaService.ClearAppList();
-        MessageBox.Show(
-            "Loaded App IDs were cleared from Steam.",
+        dialogService.ShowInformation(
             "Clear IDs",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            "Loaded App IDs were cleared from Steam.");
     }
 
     private void DeleteCacheButton_Click(object sender, RoutedEventArgs e)
@@ -289,11 +292,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                $"Failed to clear Steam App Cache: {ex.Message}",
+            dialogService.ShowError(
                 "Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                $"Failed to clear Steam App Cache: {ex.Message}");
         }
         finally
         {
@@ -308,22 +309,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (!canInstallGreenLuma && !useLocalGreenLumaArchive)
         {
-            MessageBox.Show(
-                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.",
+            dialogService.ShowError(
                 "Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.");
             return;
         }
 
-        var response = MessageBox.Show(
-            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.",
+        var response = dialogService.ShowQuestion(
             "Add Exclusion?",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question)
-                .ToResult();
+            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.");
 
-        var shouldAddExclusion = response.Value == MessageBoxResult.OK;
+        var shouldAddExclusion = response == MessageBoxResult.Yes;
 
         Mouse.OverrideCursor = Cursors.Wait;
 
@@ -334,11 +330,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             greenLumaService.InstallGreenLumaOffline(localArchivePath, shouldAddExclusion) : 
             await greenLumaService.InstallGreenLuma(filesUrlDownload, shouldAddExclusion);
 
-        MessageBox.Show(
-            result.IsSuccess ? "GreenLuma has been successfully installed." : result.Errors.Single().Message,
-            result.IsSuccess ? "Success" : "Failed",
-            MessageBoxButton.OK,
-            result.IsSuccess ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        if (result.IsSuccess)
+        {
+            dialogService.ShowInformation("Success", "GreenLuma has been successfully installed.");
+        }
+        else
+        {
+            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
+        }
 
         if (result.IsSuccess)
         {
@@ -353,11 +352,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Mouse.OverrideCursor = Cursors.Wait;
 
         var result = greenLumaService.UninstallGreenLuma();
-        MessageBox.Show(
-            result.IsSuccess ? "GreenLuma has been successfully uninstalled." : result.Errors.Single().Message,
-            result.IsSuccess ? "Success" : "Failed",
-            MessageBoxButton.OK,
-            result.IsSuccess ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        if (result.IsSuccess)
+        {
+            dialogService.ShowInformation("Success", "GreenLuma has been successfully uninstalled.");
+        }
+        else
+        {
+            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
+        }
 
         if (result.IsSuccess)
         {
@@ -423,10 +425,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var version = updateService.GetCurrentVersion();
-        MessageBox.Show(
-            $"GreenLuma Presets Manager\n\nVersion: {version}\n\nA tool to manage GreenLuma presets and AppIDs.",
+        dialogService.ShowInformation(
             "About GreenLuma Presets",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            $"GreenLuma Presets Manager\n\nVersion: {version}\n\nA tool to manage GreenLuma presets and AppIDs.");
+    }
+
+    private void TutorialMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        const string tutorialMessage = @"Before starting let me explain some basics:
+- GreenLuma: a tool that allows you to unlock apps in Steam by loading the list of AppIDs you want to unlock
+- AppID: a unique identifier for each game and DLCs in Steam
+- Preset: a collection of AppIDs that can be loaded into GreenLuma
+
+Quick start:
+1) Create a preset: You have two options to create a preset
+   - Create empty preset: click Add below the presets list to create a new preset with no AppIDs
+   - Import preset from Steam: click Import and enter the AppID of a game to import all its DLCs as a preset. You can find the AppID on the game's SteamDB page. For example, the AppID for Portal 2 is 620, so entering 620 will import a preset with all Portal 2 DLCs.
+2) Add AppIDs: You also have two options to add AppIDs to an existing preset
+   - Add single AppID: click Add below the AppIDs list to add a new AppID with value 0 that you can edit. You can find the AppID of a game or DLC on its SteamDB page.
+   - Import AppIDs from Steam: click Import and then click on Import from Steam. Enter the AppID of a game to import all its DLCs as AppIDs into the selected preset.
+   - Import AppIDs from clipboard: copy a list of AppIDs to the clipboard and click Import, then click on Import from clipboard and it will add all AppIDs from the clipboard to the selected preset. This is useful if you want to import a list of AppIDs from a text file or a website. Just make sure to copy only the AppIDs, one per line, without any additional text.
+3) Load and launch: use Load and launch Steam to restart Steam with the selected preset.
+
+Tips:
+- Right-click a preset or AppID to rename or delete.
+- Clear IDs from GreenLuma removes the current AppList in Steam.
+- Check for Updates is under Help.";
+
+        dialogService.ShowInformation("Tutorial", tutorialMessage);
     }
 }

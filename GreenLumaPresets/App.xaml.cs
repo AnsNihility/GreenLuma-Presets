@@ -1,5 +1,6 @@
 ﻿using GreenLumaPresets.Controllers;
 using GreenLumaPresets.Models;
+using GreenLumaPresets.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,6 +51,7 @@ public partial class App : Application
         services.AddTransient<GreenLumaService>();
         services.AddTransient<SteamService>();
         services.AddTransient<UpdateService>();
+        services.AddSingleton<IDialogService, DialogService>();
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();

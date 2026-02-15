@@ -51,6 +51,51 @@ public class SteamService
             return Result.Fail(err.Message);
         }
     }
+
+    public async Task<Result<List<SteamSearchResult>>> SearchAppsByName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return Result.Fail("Search term is required");
+        }
+
+        string url = $"https://store.steampowered.com/api/storesearch/?term={Uri.EscapeDataString(name)}&l=english&cc=US";
+
+        using HttpClient client = new();
+
+        try
+        {
+            using HttpResponseMessage response = await client.GetAsync(url);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode || json == null)
+                return Result.Fail("Failed to search Steam");
+
+            var parsedJson = JsonSerializer.Deserialize<SteamSearchResponse>(
+                json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip
+                });
+
+            if (parsedJson?.Items == null)
+                return Result.Fail("Failed to parse Steam search response");
+
+            var results = parsedJson.Items
+                .Where(item => item.Id != null && !string.IsNullOrWhiteSpace(item.Name))
+                .Select(item => new SteamSearchResult(item.Id!.Value, item.Name!))
+                .ToList();
+
+            return Result.Ok(results);
+        }
+        catch (Exception err)
+        {
+            if (err.Source == "System.Net.Http")
+                return Result.Fail("Couldn't connect to Steam API");
+            return Result.Fail(err.Message);
+        }
+    }
 }
 
 public record SteamResponse(
@@ -59,6 +104,23 @@ public record SteamResponse(
 );
 
 public record SteamDataResponse(string name, int? steam_appid, IReadOnlyList<int?> dlc);
+
+public record SteamSearchResult(int AppId, string Name);
+
+public class SteamSearchResponse
+{
+    [JsonPropertyName("items")]
+    public List<SteamSearchItem>? Items { get; set; }
+}
+
+public class SteamSearchItem
+{
+    [JsonPropertyName("id")]
+    public int? Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+}
 
 public record SteamApp(string Name, List<string> AppIds)
 {

@@ -1,0 +1,101 @@
+<Window x:Class="GreenLumaPresets.Views.DialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        mc:Ignorable="d"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight"
+        Background="{DynamicResource SteamWindowBackground}"
+        Foreground="{DynamicResource SteamText}">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="32"
+                            ResizeBorderThickness="0"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Window.Resources>
+        <Style x:Key="DialogButton" TargetType="Button">
+            <Setter Property="Width" Value="70"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Background" Value="{DynamicResource SteamButtonBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamText}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Border x:Name="TopLeftHighlight" 
+                                    BorderBrush="{DynamicResource SteamButtonHighlight}" 
+                                    BorderThickness="1,1,0,0" 
+                                    Opacity="0.45"/>
+                            <Border x:Name="BottomRightShadow" 
+                                    BorderBrush="{DynamicResource SteamButtonShadow}" 
+                                    BorderThickness="0,0,1,1" 
+                                    Opacity="0.7"/>
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center" 
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="TopLeftHighlight" Property="BorderBrush" Value="{DynamicResource SteamButtonShadow}"/>
+                                <Setter TargetName="TopLeftHighlight" Property="Opacity" Value="0.7"/>
+                                <Setter TargetName="BottomRightShadow" Property="BorderBrush" Value="{DynamicResource SteamButtonHighlight}"/>
+                                <Setter TargetName="BottomRightShadow" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Border BorderBrush="{DynamicResource SteamButtonHighlight}"
+                BorderThickness="1,1,0,0"
+                Opacity="0.6"/>
+        <Border BorderBrush="{DynamicResource SteamButtonShadow}"
+                BorderThickness="0,0,1,1"
+                Opacity="0.8"/>
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="32"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title Bar -->
+            <Grid Grid.Row="0" Background="{DynamicResource SteamWindowBackground}" Margin="0,0,0,8">
+                <TextBlock x:Name="TitleBlock" Text="Dialog" VerticalAlignment="Center" FontSize="13"/>
+            </Grid>
+
+            <!-- Message Area -->
+            <Border Grid.Row="1" Padding="16,12" Background="{DynamicResource SteamPanelBackground}">
+                <ScrollViewer MaxHeight="300" MaxWidth="400" VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="MessageBlock" 
+                               Text="Message" 
+                               TextWrapping="Wrap" 
+                               Foreground="{DynamicResource SteamText}"
+                               FontSize="11"/>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Button Area -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button x:Name="Button1" Style="{StaticResource DialogButton}" Content="OK" Click="Button1_Click"/>
+                <Button x:Name="Button2" Style="{StaticResource DialogButton}" Content="Cancel" Click="Button2_Click" Visibility="Collapsed"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

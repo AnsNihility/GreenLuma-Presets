@@ -117,6 +117,7 @@
                 <MenuItem Header="_Clear IDs from GreenLuma" Click="ResetPresetButton_Click"/>
             </MenuItem>
             <MenuItem Header="_Help ▾">
+                <MenuItem Header="_Tutorial" Click="TutorialMenuItem_Click"/>
                 <MenuItem Header="_Check for Updates..." Click="CheckForUpdatesMenuItem_Click"/>
                 <MenuItem Header="_About" Click="AboutMenuItem_Click"/>
             </MenuItem>
