@@ -93,7 +93,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedPreset == null) return;
+        if (SelectedPreset == null || !ConfirmAppListSize(SelectedPreset)) return;
 
         Mouse.OverrideCursor = Cursors.Wait;
         try
@@ -108,7 +108,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedPreset == null) return;
+        if (SelectedPreset == null || !ConfirmAppListSize(SelectedPreset)) return;
 
         Mouse.OverrideCursor = Cursors.Wait;
         try
@@ -120,6 +120,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             Mouse.OverrideCursor = null;
         }
+    }
+
+    /// <summary>
+    /// Asks for confirmation when the preset exceeds the AppList size configured in appsettings.json.
+    /// </summary>
+    private bool ConfirmAppListSize(PresetView preset)
+    {
+        var maxSize = App.Current.Settings.MaxAppListSize;
+        if (maxSize is not > 0 || preset.AppIds.Count <= maxSize) return true;
+
+        var response = dialogService.ShowQuestion(
+            "Preset too large",
+            $"This preset contains {preset.AppIds.Count} AppIDs but GreenLuma is configured to support {maxSize}. "
+            + "AppIDs beyond the limit may be ignored by GreenLuma.\n\nLoad it anyway?");
+        return response == MessageBoxResult.Yes;
     }
 
     /// <summary>

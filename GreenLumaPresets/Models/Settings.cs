@@ -7,6 +7,12 @@ public class Settings
     public string? GreenLumaArchiveUrl { get; init; } = string.Empty;
     public string? GreenLumaArchivePath { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Maximum number of AppIDs supported by the installed GreenLuma version.
+    /// A confirmation is asked before loading a bigger preset. Null or 0 disables the check.
+    /// </summary>
+    public int? MaxAppListSize { get; init; }
+
     public bool CanInstallGreenLuma { get => !string.IsNullOrEmpty(GreenLumaArchiveUrl); }
 
     /// <summary>
