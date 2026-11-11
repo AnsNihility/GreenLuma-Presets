@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentResults;
 
-namespace GreenLumaPresets.Controllers;
+namespace GreenLumaPresets.Services;
 
 public class SteamService
 {

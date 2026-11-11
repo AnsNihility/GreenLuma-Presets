@@ -1,7 +1,7 @@
 ﻿using FluentResults;
 using GreenLumaPresets.Models;
 
-namespace GreenLumaPresets.Controllers;
+namespace GreenLumaPresets.Services;
 
 public class PresetsService
 {

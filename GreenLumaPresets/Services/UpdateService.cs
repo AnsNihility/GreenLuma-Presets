@@ -2,7 +2,7 @@ using AutoUpdaterDotNET;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 
-namespace GreenLumaPresets.Controllers;
+namespace GreenLumaPresets.Services;
 
 public class UpdateService
 {

@@ -12,7 +12,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace GreenLumaPresets.Controllers;
+namespace GreenLumaPresets.Services;
 
 public class GreenLumaService
 {
