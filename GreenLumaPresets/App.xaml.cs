@@ -2,6 +2,7 @@
 using GreenLumaPresets.Models;
 using GreenLumaPresets.Services;
 using GreenLumaPresets.ViewModels;
+using GreenLumaPresets.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,15 +15,11 @@ using System.Windows.Threading;
 namespace GreenLumaPresets;
 
 /// <summary>
-/// Interaction logic for App.xaml
+/// Composition root: configuration, logging, dependency injection and the main window.
 /// </summary>
 public partial class App : Application
 {
-    public new static App Current => (App)Application.Current;
-    public IServiceProvider Services { get; }
-    public IConfiguration Configuration { get; set; }
-    public Settings Settings { get; private set; }
-
+    private readonly IServiceProvider services;
     private readonly ILogger logger;
 
     public App()
@@ -31,25 +28,26 @@ public partial class App : Application
         logger = loggerFactory.CreateLogger<App>();
         RegisterGlobalExceptionHandlers();
 
-        var builder = new ConfigurationBuilder()
+        var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+            .Build();
+        var settings = configuration.GetSection("Settings").Get<Settings>() ?? new Settings();
 
-        this.Configuration = builder.Build();
-        this.Settings = Configuration.GetSection("Settings").Get<Settings>()
-            ?? new Settings();
-        this.Services = ConfigureServices(loggerFactory, Settings);
+        services = ConfigureServices(loggerFactory, settings);
 
-        this.InitializeComponent();
+        InitializeComponent();
     }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        MainWindow = services.GetRequiredService<MainWindow>();
+        MainWindow.Show();
+
         // Check for updates on startup (silently, without "no update" message)
-        var updateService = Services.GetService<IUpdateService>();
-        updateService?.CheckForUpdates(showNoUpdateMessage: false);
+        services.GetRequiredService<IUpdateService>().CheckForUpdates(showNoUpdateMessage: false);
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder) => builder
@@ -85,7 +83,7 @@ public partial class App : Application
         // A failed handler may have left the wait cursor on.
         Mouse.OverrideCursor = null;
 
-        Services?.GetService<IDialogService>()?.ShowError(
+        services?.GetService<IDialogService>()?.ShowError(
             "Unexpected error",
             $"{e.Exception.Message}\n\nDetails were written to {FileLoggerProvider.DefaultDirectory}");
 
@@ -118,6 +116,9 @@ public partial class App : Application
         services.AddTransient<IUpdateService, UpdateService>();
         services.AddTransient<IImportFromSteamDialog, ImportFromSteamDialog>();
         services.AddTransient<ImportFromSteamViewModel>();
+        services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddTransient<MainViewModel>();
+        services.AddTransient<MainWindow>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton(loggerFactory);
         services.AddLogging();

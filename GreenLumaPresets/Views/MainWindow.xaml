@@ -1,11 +1,13 @@
-﻿<Window x:Class="GreenLumaPresets.MainWindow"
+﻿<Window x:Class="GreenLumaPresets.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:GreenLumaPresets" xmlns:converters="clr-namespace:GreenLumaPresets.Views.Converters"
+        xmlns:views="clr-namespace:GreenLumaPresets.Views"
+        xmlns:vm="clr-namespace:GreenLumaPresets.ViewModels"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="GreenLuma Presets" Height="450" Width="800"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -16,7 +18,19 @@
                             CornerRadius="0"
                             GlassFrameThickness="0"/>
     </shell:WindowChrome.WindowChrome>
+    <Window.Style>
+        <Style TargetType="Window">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                    <Setter Property="Cursor" Value="Wait"/>
+                    <Setter Property="ForceCursor" Value="True"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Style>
     <Window.Resources>
+        <!-- Context menus are outside the visual tree: they reach the view model through this proxy. -->
+        <views:BindingProxy x:Key="ViewModel" Data="{Binding}"/>
         <Style x:Key="TitleBarButton" TargetType="Button">
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
@@ -112,14 +126,14 @@
         <Menu Grid.Row="1" Grid.ColumnSpan="2" Background="{DynamicResource SteamWindowBackground}" Foreground="{DynamicResource SteamText}" Height="24" VerticalAlignment="Top"
               shell:WindowChrome.IsHitTestVisibleInChrome="True">
             <MenuItem Header="_GreenLuma ▾">
-                <MenuItem Header="{Binding InstallUninstallMenuText}" Click="InstallUninstallGreenLumaMenuItem_Click"/>
-                <MenuItem Header="_Delete Steam cache" Click="DeleteCacheButton_Click" IsEnabled="{Binding IsDeleteCacheExeInstalled}"/>
-                <MenuItem Header="_Clear IDs from GreenLuma" Click="ResetPresetButton_Click"/>
+                <MenuItem Header="{Binding InstallUninstallMenuText}" Command="{Binding InstallOrUninstallGreenLumaCommand}"/>
+                <MenuItem Header="_Delete Steam cache" Command="{Binding DeleteSteamCacheCommand}"/>
+                <MenuItem Header="_Clear IDs from GreenLuma" Command="{Binding ClearAppListCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help ▾">
-                <MenuItem Header="_Tutorial" Click="TutorialMenuItem_Click"/>
-                <MenuItem Header="_Check for Updates..." Click="CheckForUpdatesMenuItem_Click"/>
-                <MenuItem Header="_About" Click="AboutMenuItem_Click"/>
+                <MenuItem Header="_Tutorial" Command="{Binding ShowTutorialCommand}"/>
+                <MenuItem Header="_Check for Updates..." Command="{Binding CheckForUpdatesCommand}"/>
+                <MenuItem Header="_About" Command="{Binding ShowAboutCommand}"/>
             </MenuItem>
         </Menu>
 
@@ -156,11 +170,12 @@
             <ListBox x:Name="PresetsListBox" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" d:ItemsSource="{d:SampleData ItemCount=5}" >
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <TextBox Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
+                        <TextBox Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus"
+                                 views:EditBehavior.IsEditing="{Binding IsEditing}">
                             <TextBox.ContextMenu>
                                 <ContextMenu>
-                                    <MenuItem Header="Rename" Click="RenamePresetMenuItem_Click"/>
-                                    <MenuItem Header="Delete" Click="DeletePresetMenuItem_Click"/>
+                                    <MenuItem Header="Rename" Command="{Binding Data.BeginEditCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
+                                    <MenuItem Header="Delete" Command="{Binding Data.DeletePresetCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
                                 </ContextMenu>
                             </TextBox.ContextMenu>
                         </TextBox>
@@ -169,14 +184,18 @@
             </ListBox>
         </Grid>
 
-        <ListBox x:Name="IDsListBox" Grid.Row="1" Grid.Column="2" SelectionMode="Extended" ItemsSource="{Binding SelectedPreset.AppIds}" KeyDown="AppIdsListBox_KeyDown">
+        <ListBox x:Name="IDsListBox" Grid.Row="1" Grid.Column="2" ItemsSource="{Binding SelectedPreset.AppIds}" SelectedItem="{Binding SelectedAppId}">
+            <ListBox.InputBindings>
+                <KeyBinding Key="Delete" Command="{Binding DeleteAppIdCommand}"/>
+            </ListBox.InputBindings>
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBox Text="{Binding AppId}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus">
+                    <TextBox Text="{Binding Value}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus"
+                             views:EditBehavior.IsEditing="{Binding IsEditing}">
                         <TextBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Rename" Click="RenameAppIdMenuItem_Click"/>
-                                <MenuItem Header="Delete" Click="DeleteAppIdMenuItem_Click"/>
+                                <MenuItem Header="Rename" Command="{Binding Data.BeginEditCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
+                                <MenuItem Header="Delete" Command="{Binding Data.DeleteAppIdCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
                             </ContextMenu>
                         </TextBox.ContextMenu>
                     </TextBox>
@@ -191,29 +210,29 @@
 
         <!-- Grid for buttons below the presets list -->
         <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button x:Name="ImportPresetButton" Content="Import" Margin="0,0,0,0" Click="ImportPresetButton_Click" Cursor="Hand"/>
-            <Button x:Name="AddPresetButton" Content="Add" VerticalAlignment="Center" Click="CreatePresetButton_Click"/>
+            <Button Content="Import" Margin="0,0,0,0" Command="{Binding ImportPresetCommand}" Cursor="Hand"/>
+            <Button Content="Add" VerticalAlignment="Center" Command="{Binding CreatePresetCommand}"/>
         </StackPanel>
 
         <!-- Grid for buttons below the IDs list -->
         <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button x:Name="ImportButton" Content="Import..." Margin="0,0,0,0" Click="ImportButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}">
+            <Button Content="Import..." Margin="0,0,0,0" Click="ImportButton_Click" IsEnabled="{Binding HasSelectedPreset}">
                 <Button.ContextMenu>
                     <ContextMenu x:Name="ImportContextMenu">
-                        <MenuItem Header="Import from Steam" Click="ImportFromSteamDBMenuItem_Click"/>
-                        <MenuItem Header="Import from the clipboard" Click="ImportFromClipboardMenuItem_Click"/>
+                        <MenuItem Header="Import from Steam" Command="{Binding Data.ImportAppIdsFromSteamCommand, Source={StaticResource ViewModel}}"/>
+                        <MenuItem Header="Import from the clipboard" Command="{Binding Data.ImportAppIdsFromClipboardCommand, Source={StaticResource ViewModel}}"/>
                     </ContextMenu>
                 </Button.ContextMenu>
             </Button>
-            <Button x:Name="AddIDButton" Content="Add" VerticalAlignment="Center" Click="CreateAppIdButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
+            <Button Content="Add" VerticalAlignment="Center" Command="{Binding CreateAppIdCommand}"/>
         </StackPanel>
             </Grid>
         </Grid>
 
         <Grid Grid.Row="4" Grid.ColumnSpan="2" Margin="0,10,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Load" Margin="0,0,0,0" Click="LoadPresetButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
-                <Button Content="Load and launch Steam" Margin="5,0,0,0" Click="LoadAndLaunchSteamButton_Click" IsEnabled="{Binding SelectedPreset, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="Load" Margin="0,0,0,0" Command="{Binding LoadPresetCommand}"/>
+                <Button Content="Load and launch Steam" Margin="5,0,0,0" Command="{Binding LoadAndLaunchSteamCommand}"/>
             </StackPanel>
         </Grid>
         </Grid>
