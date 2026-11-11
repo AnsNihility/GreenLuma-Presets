@@ -122,6 +122,27 @@ public sealed class PresetsServiceTests : IDisposable
     }
 
     [Fact]
+    public void Database_RejectsAppIdWithoutPreset()
+    {
+        dbContext.AppIds.Add(new AppId { Id = Guid.NewGuid(), PresetId = Guid.NewGuid(), Value = "620" });
+
+        Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+    }
+
+    [Fact]
+    public void Database_CascadesPresetDeletionToItsAppIds()
+    {
+        var preset = service.AddPreset("Test");
+        service.AddAppIds(preset.Id, ["620", "400"]);
+        dbContext.ChangeTracker.Clear();
+
+        // Bypass EF's own cascade to check the database constraint.
+        dbContext.Database.ExecuteSql($"DELETE FROM Presets WHERE Id = {preset.Id}");
+
+        Assert.Empty(dbContext.AppIds);
+    }
+
+    [Fact]
     public void GetPresetsWithAppIds_GroupsAppIdsByPreset()
     {
         var first = service.AddPreset("First");

@@ -52,12 +52,8 @@ public class PresetsService
         var preset = dbContext.Presets.FirstOrDefault(p => p.Id == id);
         if (preset == null) return;
 
+        // Its AppIDs are removed by the cascading foreign key.
         dbContext.Presets.Remove(preset);
-
-        var appIds = dbContext.AppIds.Where(a => a.PresetId == id).ToList();
-        if (appIds.Count > 0) 
-            dbContext.RemoveRange(appIds);
-
         dbContext.SaveChanges();
     }
 

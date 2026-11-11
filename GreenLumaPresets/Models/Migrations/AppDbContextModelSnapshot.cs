@@ -15,7 +15,7 @@ namespace GreenLumaPresets.Models.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.8");
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.34");
 
             modelBuilder.Entity("GreenLumaPresets.Models.AppId", b =>
                 {
@@ -53,6 +53,22 @@ namespace GreenLumaPresets.Models.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Presets");
+                });
+
+            modelBuilder.Entity("GreenLumaPresets.Models.AppId", b =>
+                {
+                    b.HasOne("GreenLumaPresets.Models.Preset", "Preset")
+                        .WithMany("AppIds")
+                        .HasForeignKey("PresetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Preset");
+                });
+
+            modelBuilder.Entity("GreenLumaPresets.Models.Preset", b =>
+                {
+                    b.Navigation("AppIds");
                 });
 #pragma warning restore 612, 618
         }
