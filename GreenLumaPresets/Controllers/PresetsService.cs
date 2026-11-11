@@ -19,13 +19,17 @@ public class PresetsService
      
     public List<AppId> GetAppIdsForPreset(Guid presetId)
     {
-        return dbContext.AppIds.Where(a => a.PresetId == presetId).ToList();
+        return dbContext.AppIds
+            .Where(a => a.PresetId == presetId)
+            .OrderBy(a => a.Position)
+            .ToList();
     }
 
     public Dictionary<Preset, List<AppId>> GetPresetsWithAppIds()
     {
         // Two queries in total instead of one per preset.
         var appIdsByPreset = dbContext.AppIds
+            .OrderBy(a => a.Position)
             .ToList()
             .ToLookup(a => a.PresetId);
 
@@ -78,7 +82,7 @@ public class PresetsService
     {
         if (dbContext.Presets.FirstOrDefault(p => p.Id == presetId) == null) return null;
 
-        var newAppId = new AppId { Id = Guid.NewGuid(), PresetId = presetId, Value = appId };
+        var newAppId = new AppId { Id = Guid.NewGuid(), PresetId = presetId, Value = appId, Position = GetNextPosition(presetId) };
 
         dbContext.AppIds.Add(newAppId);
         dbContext.SaveChanges();
@@ -99,19 +103,27 @@ public class PresetsService
             .Select(a => a.Value)
             .ToHashSet();
 
+        var nextPosition = GetNextPosition(presetId);
         var newAppIds = new List<AppId>();
         foreach (var value in appIds)
         {
             if (!AppIdRules.TryNormalize(value, out var normalized)) continue;
             if (!knownValues.Add(normalized)) continue;
 
-            newAppIds.Add(new AppId { Id = Guid.NewGuid(), PresetId = presetId, Value = normalized });
+            newAppIds.Add(new AppId { Id = Guid.NewGuid(), PresetId = presetId, Value = normalized, Position = nextPosition++ });
         }
 
         dbContext.AppIds.AddRange(newAppIds);
         dbContext.SaveChanges();
 
         return newAppIds;
+    }
+
+    private int GetNextPosition(Guid presetId)
+    {
+        return (dbContext.AppIds
+            .Where(a => a.PresetId == presetId)
+            .Max(a => (int?)a.Position) ?? 0) + 1;
     }
 
     public void RemoveAppId(Guid presetId, Guid idToDelete)

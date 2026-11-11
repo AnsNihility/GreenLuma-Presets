@@ -54,6 +54,7 @@ public class GreenLumaService
 
         var storedValues = dbContext.AppIds
             .Where(x => x.PresetId == presetId)
+            .OrderBy(a => a.Position)
             .Select(a => a.Value).ToList();
 
         // Presets saved by older versions may contain placeholders, invalid values or duplicates.
