@@ -1,9 +1,11 @@
 ﻿using GreenLumaPresets.Controllers;
+using GreenLumaPresets.Logging;
 using GreenLumaPresets.Models;
 using GreenLumaPresets.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Windows;
 
@@ -52,7 +54,10 @@ public partial class App : Application
         services.AddTransient<SteamService>();
         services.AddTransient<UpdateService>();
         services.AddSingleton<IDialogService, DialogService>();
-        services.AddLogging();
+        services.AddLogging(builder => builder
+            .SetMinimumLevel(LogLevel.Information)
+            .AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning)
+            .AddProvider(new FileLoggerProvider(FileLoggerProvider.DefaultDirectory)));
 
         var serviceProvider = services.BuildServiceProvider();
 

@@ -307,7 +307,7 @@ public class GreenLumaService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error retrieving Steam path: {ex.Message}");
+            logger.LogError(ex, "Error retrieving Steam path");
         }
         return false;
     }
