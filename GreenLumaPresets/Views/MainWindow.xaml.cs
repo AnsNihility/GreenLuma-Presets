@@ -69,6 +69,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 SelectedPreset.AppIds.Add(AppIdView.From(appId));
             }
+            ShowImportSummary(appIds.Length, newAppIds.Count);
         }
     }
 
@@ -85,6 +86,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     SelectedPreset.AppIds.Add(AppIdView.From(appId));
                 }
+                ShowImportSummary(window.AppIds.Count, newAppIds.Count);
             }
         }
     }
@@ -195,34 +197,67 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void TextBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is IEditableView editable)
-        {
-            if (editable is PresetView presetView)
-            {
-                presetsService.UpdatePreset(presetView.Id, presetView.Name);
-            }
-            else if (editable is AppIdView appIdView && selectedPreset != null)
-            {
-                presetsService.UpdateAppId(selectedPreset.Id, appIdView.Id, appIdView.AppId);
-            }
-            editable.IsEditing = false;
-        }
+        if (sender is TextBox textBox) CommitEdit(textBox);
     }
 
     private void TextBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && sender is TextBox textBox && textBox.DataContext is IEditableView editable)
+        if (sender is not TextBox textBox) return;
+
+        if (e.Key == Key.Enter)
         {
-            if (editable is PresetView presetView)
-            {
-                presetsService.UpdatePreset(presetView.Id, presetView.Name);
-            }
-            else if (editable is AppIdView appIdView && selectedPreset != null)
-            {
-                presetsService.UpdateAppId(selectedPreset.Id, appIdView.Id, appIdView.AppId);
-            }
-            editable.IsEditing = false;
+            CommitEdit(textBox);
+            e.Handled = true;
         }
+        else if (e.Key == Key.Escape && textBox.DataContext is IEditableView { IsEditing: true } editable)
+        {
+            // Discard the typed text: the binding only pushes on LostFocus, so restore from the source.
+            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            editable.IsEditing = false;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Persists an inline edit once. Invalid values are reported and reverted to the stored value.
+    /// </summary>
+    private void CommitEdit(TextBox textBox)
+    {
+        if (textBox.DataContext is not IEditableView { IsEditing: true } editable) return;
+
+        // Leaving edit mode first prevents the LostFocus raised by it from committing a second time.
+        textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        editable.IsEditing = false;
+
+        if (editable is PresetView presetView)
+        {
+            var result = presetsService.UpdatePreset(presetView.Id, presetView.Name);
+            if (ShowIfFailed(result))
+            {
+                presetView.Name = presetView.Name.Trim();
+            }
+            else
+            {
+                presetView.Name = presetsService.GetPresetName(presetView.Id) ?? presetView.Name;
+            }
+        }
+        else if (editable is AppIdView appIdView && SelectedPreset != null)
+        {
+            var result = presetsService.UpdateAppId(SelectedPreset.Id, appIdView.Id, appIdView.AppId);
+            appIdView.AppId = ShowIfFailed(result.ToResult())
+                ? result.Value
+                : presetsService.GetAppIdValue(appIdView.Id) ?? appIdView.AppId;
+        }
+    }
+
+    private void ShowImportSummary(int requested, int added)
+    {
+        var skipped = requested - added;
+        if (skipped <= 0) return;
+
+        dialogService.ShowInformation(
+            "Import",
+            $"{added} AppID(s) added.\n{skipped} skipped because they were invalid or already in the preset.");
     }
 
     private void AppIdsListBox_KeyDown(object sender, KeyEventArgs e)

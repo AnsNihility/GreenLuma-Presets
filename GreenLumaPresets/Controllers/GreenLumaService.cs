@@ -50,14 +50,27 @@ public class GreenLumaService
 
         var appListPath = Path.Combine(pathToSteam, "AppList");
 
-        var appIds = dbContext.AppIds
+        var storedValues = dbContext.AppIds
             .Where(x => x.PresetId == presetId)
             .Select(a => a.Value).ToList();
+
+        // Presets saved by older versions may contain placeholders, invalid values or duplicates.
+        var appIds = storedValues
+            .Select(value => AppIdRules.TryNormalize(value, out var normalized) ? normalized : null)
+            .OfType<string>()
+            .Distinct()
+            .ToList();
+
+        if (appIds.Count != storedValues.Count)
+        {
+            logger.LogInformation("Skipped {Count} invalid or duplicate AppIDs while loading preset {PresetId}",
+                storedValues.Count - appIds.Count, presetId);
+        }
 
         for (int i = 0; i < appIds.Count; i++)
         {
             var appFilePath = Path.Combine(appListPath, $"{i}.txt");
-            File.WriteAllText(appFilePath, appIds[i].ToString());
+            File.WriteAllText(appFilePath, appIds[i]);
         }
         return Result.Ok();
     }

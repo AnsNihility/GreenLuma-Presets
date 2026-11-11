@@ -1,9 +1,5 @@
-﻿using GreenLumaPresets.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using FluentResults;
+using GreenLumaPresets.Models;
 
 namespace GreenLumaPresets.Controllers;
 
@@ -56,13 +52,21 @@ public class PresetsService
         dbContext.SaveChanges();
     }
 
-    public void UpdatePreset(Guid id, string name)
+    public string? GetPresetName(Guid id)
     {
-        var preset = dbContext.Presets.FirstOrDefault(p => p.Id == id);
-        if (preset == null) return;
+        return dbContext.Presets.FirstOrDefault(p => p.Id == id)?.Name;
+    }
 
-        preset.Name = name;
+    public Result UpdatePreset(Guid id, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return Result.Fail("The preset name cannot be empty");
+
+        var preset = dbContext.Presets.FirstOrDefault(p => p.Id == id);
+        if (preset == null) return Result.Fail("This preset no longer exists");
+
+        preset.Name = name.Trim();
         dbContext.SaveChanges();
+        return Result.Ok();
     }
 
     public AppId? AddAppId(Guid presetId, string appId)
@@ -77,11 +81,27 @@ public class PresetsService
         return newAppId;
     }
 
+    /// <summary>
+    /// Adds the valid App IDs to the preset, skipping invalid values and App IDs already present.
+    /// </summary>
+    /// <returns>The App IDs actually added.</returns>
     public List<AppId> AddAppIds(Guid presetId, IEnumerable<string> appIds)
     {
         if (dbContext.Presets.FirstOrDefault(p => p.Id == presetId) == null) return [];
 
-        var newAppIds = appIds.Select(x => new AppId { Id = Guid.NewGuid(), PresetId = presetId, Value = x }).ToList();
+        var knownValues = dbContext.AppIds
+            .Where(a => a.PresetId == presetId)
+            .Select(a => a.Value)
+            .ToHashSet();
+
+        var newAppIds = new List<AppId>();
+        foreach (var value in appIds)
+        {
+            if (!AppIdRules.TryNormalize(value, out var normalized)) continue;
+            if (!knownValues.Add(normalized)) continue;
+
+            newAppIds.Add(new AppId { Id = Guid.NewGuid(), PresetId = presetId, Value = normalized });
+        }
 
         dbContext.AppIds.AddRange(newAppIds);
         dbContext.SaveChanges();
@@ -100,14 +120,27 @@ public class PresetsService
         dbContext.SaveChanges();
     }
 
-    public void UpdateAppId(Guid presetId, Guid appId, string value)
+    public string? GetAppIdValue(Guid appId)
     {
-        if (dbContext.Presets.FirstOrDefault(p => p.Id == presetId) == null) return;
+        return dbContext.AppIds.FirstOrDefault(a => a.Id == appId)?.Value;
+    }
+
+    public Result<string> UpdateAppId(Guid presetId, Guid appId, string value)
+    {
+        if (!AppIdRules.TryNormalize(value, out var normalized))
+            return Result.Fail($"\"{value}\" is not a valid AppID. An AppID is a positive number, e.g. 620.");
+
+        if (dbContext.Presets.FirstOrDefault(p => p.Id == presetId) == null)
+            return Result.Fail("This preset no longer exists");
 
         var appIdToUpdate = dbContext.AppIds.FirstOrDefault(a => a.Id == appId);
-        if (appIdToUpdate == null) return;
+        if (appIdToUpdate == null) return Result.Fail("This AppID no longer exists");
 
-        appIdToUpdate.Value = value;
+        if (dbContext.AppIds.Any(a => a.PresetId == presetId && a.Id != appId && a.Value == normalized))
+            return Result.Fail($"AppID {normalized} is already in this preset");
+
+        appIdToUpdate.Value = normalized;
         dbContext.SaveChanges();
+        return Result.Ok(normalized);
     }
 }
