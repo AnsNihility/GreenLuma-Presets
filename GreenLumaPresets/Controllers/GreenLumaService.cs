@@ -3,7 +3,6 @@ using GreenLumaPresets.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using SharpCompress.Archives;
-using SharpCompress.Archives.Rar;
 using SharpCompress.Common;
 using System.Diagnostics;
 using System.IO;
@@ -11,6 +10,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
 
 namespace GreenLumaPresets.Controllers;
 
@@ -30,6 +30,30 @@ public class GreenLumaService
             logger.LogWarning("Steam path not found");
         }
     }
+
+    /// <summary>
+    /// Uses the given Steam folder instead of the one registered by Steam.
+    /// </summary>
+    public GreenLumaService(AppDbContext dbContext, ILogger<GreenLumaService> logger, string pathToSteam)
+    {
+        this.dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.pathToSteam = pathToSteam;
+    }
+
+    /// <summary>
+    /// Lists, in the Steam folder, the files extracted by the installer so uninstall removes all of them.
+    /// </summary>
+    private const string InstallManifestFileName = "GreenLumaPresets.installed.json";
+
+    /// <summary>
+    /// Files installed by versions that didn't write a manifest.
+    /// </summary>
+    private static readonly HashSet<string> KnownGreenLumaFiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "user32.dll",
+        "DeleteSteamAppCache.exe",
+    };
 
     private const string SteamNotFoundMessage = "Steam installation not found. Make sure Steam is installed and has been launched at least once.";
 
@@ -286,17 +310,38 @@ public class GreenLumaService
 
     private Result ExtractToSteamDirectory(string archivePath)
     {
+        var installedFiles = ReadInstallManifest();
         try
         {
             using var archive = ArchiveFactory.Open(archivePath);
             foreach (var entry in archive.Entries)
             {
-                if (entry.IsDirectory) continue;
+                if (entry.IsDirectory || string.IsNullOrEmpty(entry.Key)) continue;
+
+                var relativePath = NormalizeRelativePath(entry.Key);
+                var fullPath = Path.GetFullPath(Path.Combine(pathToSteam, relativePath));
+                if (!IsInsideSteamDirectory(fullPath))
+                {
+                    logger.LogWarning("Skipped archive entry {Entry} pointing outside the Steam folder", entry.Key);
+                    continue;
+                }
+
+                var existedBefore = File.Exists(fullPath);
                 entry.WriteToDirectory(pathToSteam, new ExtractionOptions()
                 {
                     ExtractFullPath = true,
                     Overwrite = true,
                 });
+
+                // Only track files GreenLuma owns: never delete a Steam file the archive happened to overwrite.
+                if (!existedBefore || installedFiles.Contains(relativePath) || KnownGreenLumaFiles.Contains(relativePath))
+                {
+                    installedFiles.Add(relativePath);
+                }
+                else
+                {
+                    logger.LogWarning("{File} already existed and was overwritten; it won't be removed on uninstall", relativePath);
+                }
             }
 
             logger.LogInformation("GreenLuma files installed successfully.");
@@ -307,29 +352,52 @@ public class GreenLumaService
             logger.LogError(ex, "Failed to install GreenLuma files");
             return Result.Fail($"Failed to install GreenLuma files: {ex.Message}");
         }
+        finally
+        {
+            // Saved even after a partial extraction so uninstall can clean it up.
+            WriteInstallManifest(installedFiles);
+        }
     }
 
+    /// <summary>
+    /// Removes every file extracted by the installer, plus the files installed by versions without a manifest.
+    /// </summary>
     public Result UninstallGreenLuma()
     {
         if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
+        var remainingFiles = ReadInstallManifest();
+        remainingFiles.UnionWith(KnownGreenLumaFiles);
+
         var errors = new List<string>();
-        foreach (var fileName in new[] { "user32.dll", "DeleteSteamAppCache.exe" })
+        foreach (var relativePath in remainingFiles.ToList())
         {
-            var filePath = Path.Combine(pathToSteam, fileName);
-            if (!File.Exists(filePath)) continue;
+            var fullPath = Path.GetFullPath(Path.Combine(pathToSteam, relativePath));
+            if (!IsInsideSteamDirectory(fullPath))
+            {
+                remainingFiles.Remove(relativePath);
+                continue;
+            }
 
             try
             {
-                File.Delete(filePath);
-                logger.LogInformation("{FileName} deleted successfully.", fileName);
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    logger.LogInformation("{File} deleted successfully.", relativePath);
+                }
+                remainingFiles.Remove(relativePath);
+                DeleteEmptyParentDirectories(fullPath);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to delete {FileName}", fileName);
-                errors.Add($"Couldn't delete {fileName}: {ex.Message}");
+                logger.LogError(ex, "Failed to delete {File}", relativePath);
+                errors.Add($"Couldn't delete {relativePath}: {ex.Message}");
             }
         }
+
+        // Keep only what couldn't be deleted, so a later uninstall retries it.
+        WriteInstallManifest(remainingFiles);
 
         if (errors.Count > 0)
         {
@@ -339,6 +407,72 @@ public class GreenLumaService
 
         logger.LogInformation("GreenLuma uninstalled successfully.");
         return Result.Ok();
+    }
+
+    private string InstallManifestPath => Path.Combine(pathToSteam, InstallManifestFileName);
+
+    private HashSet<string> ReadInstallManifest()
+    {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (File.Exists(InstallManifestPath))
+            {
+                var stored = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(InstallManifestPath)) ?? [];
+                files.UnionWith(stored.Select(NormalizeRelativePath));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Couldn't read the GreenLuma install manifest");
+        }
+        return files;
+    }
+
+    private void WriteInstallManifest(HashSet<string> files)
+    {
+        try
+        {
+            if (files.Count == 0)
+            {
+                if (File.Exists(InstallManifestPath)) File.Delete(InstallManifestPath);
+                return;
+            }
+
+            var json = JsonSerializer.Serialize(
+                files.Order(StringComparer.OrdinalIgnoreCase).ToList(),
+                new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(InstallManifestPath, json);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Couldn't write the GreenLuma install manifest");
+        }
+    }
+
+    private static string NormalizeRelativePath(string path)
+    {
+        return path.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+    }
+
+    private bool IsInsideSteamDirectory(string fullPath)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(pathToSteam)) + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void DeleteEmptyParentDirectories(string filePath)
+    {
+        var steamRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(pathToSteam));
+        var directory = Path.GetDirectoryName(filePath);
+        while (directory != null
+            && !string.Equals(Path.TrimEndingDirectorySeparator(directory), steamRoot, StringComparison.OrdinalIgnoreCase)
+            && Directory.Exists(directory)
+            && !Directory.EnumerateFileSystemEntries(directory).Any())
+        {
+            Directory.Delete(directory);
+            directory = Path.GetDirectoryName(directory);
+        }
     }
 
     /// <summary>
