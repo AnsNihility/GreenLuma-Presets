@@ -191,13 +191,7 @@
 
         <!-- Grid for buttons below the presets list -->
         <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button x:Name="ImportPresetButton" Content="Import" Margin="0,0,0,0" Click="ImportPresetButton_Click" Cursor="Hand">
-                <Button.ContextMenu>
-                    <ContextMenu x:Name="ImportPresetContextMenu">
-                        <MenuItem Header="Import from Steam"/>
-                    </ContextMenu>
-                </Button.ContextMenu>
-            </Button>
+            <Button x:Name="ImportPresetButton" Content="Import" Margin="0,0,0,0" Click="ImportPresetButton_Click" Cursor="Hand"/>
             <Button x:Name="AddPresetButton" Content="Add" VerticalAlignment="Center" Click="CreatePresetButton_Click"/>
         </StackPanel>
 
