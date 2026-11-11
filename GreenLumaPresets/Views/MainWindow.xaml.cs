@@ -64,10 +64,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             string clipboardText = Clipboard.GetText();
             string[] appIds = clipboardText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            presetsService.AddAppIds(SelectedPreset.Id, appIds);
-            foreach (string appId in appIds)
+            var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, appIds);
+            foreach (AppId appId in newAppIds)
             {
-                SelectedPreset.AppIds.Add(new(Guid.NewGuid(), appId));
+                SelectedPreset.AppIds.Add(AppIdView.From(appId));
             }
         }
     }
