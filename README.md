@@ -85,17 +85,20 @@ dotnet run --project GreenLumaPresets
 
 ## Configuration
 
-Settings are read from `appsettings.json`, next to the executable. The file is optional.
+Settings are read from `appsettings.json`, next to the executable. The file is optional: copy `appsettings.example.json` to `appsettings.json` to customize them. Updates never overwrite it.
 
 | Setting | Description |
 |---|---|
 | `GreenLumaArchiveUrl` | URL of a GreenLuma archive to download when installing. |
-| `GreenLumaArchivePath` | Path to a local GreenLuma archive (relative to the executable). Takes precedence over the URL when the file exists. |
+| `GreenLumaArchivePath` | Path to a local GreenLuma archive (relative to the executable, `GreenLuma.rar` by default). Takes precedence over the URL when the file exists. |
 | `GreenLumaArchiveSha256` | Optional SHA-256 the archive must match before it is extracted into the Steam folder. Strongly recommended. |
 | `MaxAppListSize` | Optional number of AppIDs supported by your GreenLuma version. Loading a bigger preset asks for confirmation. |
 
-Presets are stored in `presets.db` next to the executable.
-Logs are written to `%LocalAppData%\GreenLumaPresets\logs` (7 days kept).
+Presets, logs (7 days kept) and the download cache are stored in `%LocalAppData%\GreenLumaPresets`. A `presets.db` left next to the executable by an older version is copied there on first launch.
+
+The app runs without administrator rights. Windows only asks for permission when adding the Windows Defender exclusion and when installing an update.
+
+Uninstalling GreenLuma removes every file the installer extracted (listed in `GreenLumaPresets.installed.json` in the Steam folder). Files that already existed, such as Steam files overwritten by the archive, are never removed.
 
 ## Development
 
@@ -105,10 +108,12 @@ dotnet test GreenLumaPresets.sln
 
 ### Releasing
 
-1. Bump `<Version>` in `GreenLumaPresets/GreenLumaPresets.csproj`.
-2. Run `./scripts/release.ps1`. It publishes the app, creates `artifacts/GreenLumaPresets-v<version>-win-x64.zip` and regenerates `update.xml` with the archive's SHA-256.
-3. Create the GitHub release `v<version>` and upload the archive.
-4. Commit `update.xml` and merge to `main`: clients pick up the update from there.
+1. Bump `<Version>` in `GreenLumaPresets/GreenLumaPresets.csproj` and merge to `main`.
+2. Start the **Release** workflow: either run it from the Actions tab on `main`, or push a tag matching the version (`git tag v1.4.0 && git push origin v1.4.0`).
+
+The workflow runs the tests, builds `GreenLumaPresets-v<version>-win-x64.zip` with `scripts/release.ps1`, creates the GitHub release with the archive, then commits the regenerated `update.xml` (with the archive's SHA-256) to `main`. Clients pick up the update from there.
+
+`./scripts/release.ps1` can also be run locally to build the archive.
 
 ## Disclaimer
 
