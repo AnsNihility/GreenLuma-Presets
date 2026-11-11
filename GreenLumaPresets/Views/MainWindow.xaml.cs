@@ -76,16 +76,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (SelectedPreset != null)
         {
-            ImportFromSteamWindow window = new(this);
-            window.ShowDialog();
-            if (window.AppIds.Count > 0)
+            var app = App.Current.Services.GetRequiredService<IImportFromSteamDialog>().Show();
+            if (app is { AppIds.Count: > 0 })
             {
-                var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, window.AppIds);
+                var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, app.AppIds);
                 foreach (AppId appId in newAppIds)
                 {
                     SelectedPreset.AppIds.Add(AppIdView.From(appId));
                 }
-                ShowImportSummary(window.AppIds.Count, newAppIds.Count);
+                ShowImportSummary(app.AppIds.Count, newAppIds.Count);
             }
         }
     }
@@ -287,12 +286,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ImportPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        ImportFromSteamWindow window = new(this);
-        window.ShowDialog();
-        if (window.AppIds.Count > 0 && !string.IsNullOrEmpty(window.AppName))
+        var app = App.Current.Services.GetRequiredService<IImportFromSteamDialog>().Show();
+        if (app is { AppIds.Count: > 0 } && !string.IsNullOrEmpty(app.Name))
         {
-            var newPreset = presetsService.AddPreset(window.AppName);
-            var newAppIds = presetsService.AddAppIds(newPreset.Id, window.AppIds);
+            var newPreset = presetsService.AddPreset(app.Name);
+            var newAppIds = presetsService.AddAppIds(newPreset.Id, app.AppIds);
 
             var newPresetView = PresetView.From(newPreset, []);
             Presets.Add(newPresetView);

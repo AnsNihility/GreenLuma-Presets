@@ -1,6 +1,7 @@
 ﻿using GreenLumaPresets.Logging;
 using GreenLumaPresets.Models;
 using GreenLumaPresets.Services;
+using GreenLumaPresets.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -115,6 +116,8 @@ public partial class App : Application
         services.AddTransient<IGreenLumaService, GreenLumaService>();
         services.AddTransient<ISteamService, SteamService>();
         services.AddTransient<IUpdateService, UpdateService>();
+        services.AddTransient<IImportFromSteamDialog, ImportFromSteamDialog>();
+        services.AddTransient<ImportFromSteamViewModel>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton(loggerFactory);
         services.AddLogging();
