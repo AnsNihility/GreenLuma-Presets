@@ -64,11 +64,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             string clipboardText = Clipboard.GetText();
             string[] appIds = clipboardText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            presetsService.AddAppIds(SelectedPreset.Id, appIds);
-            foreach (string appId in appIds)
+            var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, appIds);
+            foreach (AppId appId in newAppIds)
             {
-                SelectedPreset.AppIds.Add(new(Guid.NewGuid(), appId));
+                SelectedPreset.AppIds.Add(AppIdView.From(appId));
             }
+            ShowImportSummary(appIds.Length, newAppIds.Count);
         }
     }
 
@@ -85,25 +86,66 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     SelectedPreset.AppIds.Add(AppIdView.From(appId));
                 }
+                ShowImportSummary(window.AppIds.Count, newAppIds.Count);
             }
         }
     }
 
     private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
+        if (SelectedPreset == null || !ConfirmAppListSize(SelectedPreset)) return;
+
         Mouse.OverrideCursor = Cursors.Wait;
-        if (SelectedPreset == null) return;
-        greenLumaService.LoadAppList(SelectedPreset.Id);
-        Mouse.OverrideCursor = null;
+        try
+        {
+            ShowIfFailed(greenLumaService.LoadAppList(SelectedPreset.Id));
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
     }
 
     private void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
     {
+        if (SelectedPreset == null || !ConfirmAppListSize(SelectedPreset)) return;
+
         Mouse.OverrideCursor = Cursors.Wait;
-        if (SelectedPreset == null) return;
-        greenLumaService.LoadAppList(SelectedPreset.Id);
-        greenLumaService.RestartSteam();
-        Mouse.OverrideCursor = null;
+        try
+        {
+            if (!ShowIfFailed(greenLumaService.LoadAppList(SelectedPreset.Id))) return;
+            ShowIfFailed(greenLumaService.RestartSteam());
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+
+    /// <summary>
+    /// Asks for confirmation when the preset exceeds the AppList size configured in appsettings.json.
+    /// </summary>
+    private bool ConfirmAppListSize(PresetView preset)
+    {
+        var maxSize = App.Current.Settings.MaxAppListSize;
+        if (maxSize is not > 0 || preset.AppIds.Count <= maxSize) return true;
+
+        var response = dialogService.ShowQuestion(
+            "Preset too large",
+            $"This preset contains {preset.AppIds.Count} AppIDs but GreenLuma is configured to support {maxSize}. "
+            + "AppIDs beyond the limit may be ignored by GreenLuma.\n\nLoad it anyway?");
+        return response == MessageBoxResult.Yes;
+    }
+
+    /// <summary>
+    /// Shows a warning dialog when the result failed.
+    /// </summary>
+    /// <returns>true when the result succeeded.</returns>
+    private bool ShowIfFailed(Result result)
+    {
+        if (result.IsSuccess) return true;
+        dialogService.ShowWarning("Failed", string.Join("\n", result.Errors.Select(x => x.Message)));
+        return false;
     }
 
     private void DeleteAppIdMenuItem_Click(object sender, RoutedEventArgs e)
@@ -170,34 +212,67 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void TextBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is IEditableView editable)
-        {
-            if (editable is PresetView presetView)
-            {
-                presetsService.UpdatePreset(presetView.Id, presetView.Name);
-            }
-            else if (editable is AppIdView appIdView && selectedPreset != null)
-            {
-                presetsService.UpdateAppId(selectedPreset.Id, appIdView.Id, appIdView.AppId);
-            }
-            editable.IsEditing = false;
-        }
+        if (sender is TextBox textBox) CommitEdit(textBox);
     }
 
     private void TextBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && sender is TextBox textBox && textBox.DataContext is IEditableView editable)
+        if (sender is not TextBox textBox) return;
+
+        if (e.Key == Key.Enter)
         {
-            if (editable is PresetView presetView)
-            {
-                presetsService.UpdatePreset(presetView.Id, presetView.Name);
-            }
-            else if (editable is AppIdView appIdView && selectedPreset != null)
-            {
-                presetsService.UpdateAppId(selectedPreset.Id, appIdView.Id, appIdView.AppId);
-            }
-            editable.IsEditing = false;
+            CommitEdit(textBox);
+            e.Handled = true;
         }
+        else if (e.Key == Key.Escape && textBox.DataContext is IEditableView { IsEditing: true } editable)
+        {
+            // Discard the typed text: the binding only pushes on LostFocus, so restore from the source.
+            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            editable.IsEditing = false;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Persists an inline edit once. Invalid values are reported and reverted to the stored value.
+    /// </summary>
+    private void CommitEdit(TextBox textBox)
+    {
+        if (textBox.DataContext is not IEditableView { IsEditing: true } editable) return;
+
+        // Leaving edit mode first prevents the LostFocus raised by it from committing a second time.
+        textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        editable.IsEditing = false;
+
+        if (editable is PresetView presetView)
+        {
+            var result = presetsService.UpdatePreset(presetView.Id, presetView.Name);
+            if (ShowIfFailed(result))
+            {
+                presetView.Name = presetView.Name.Trim();
+            }
+            else
+            {
+                presetView.Name = presetsService.GetPresetName(presetView.Id) ?? presetView.Name;
+            }
+        }
+        else if (editable is AppIdView appIdView && SelectedPreset != null)
+        {
+            var result = presetsService.UpdateAppId(SelectedPreset.Id, appIdView.Id, appIdView.AppId);
+            appIdView.AppId = ShowIfFailed(result.ToResult())
+                ? result.Value
+                : presetsService.GetAppIdValue(appIdView.Id) ?? appIdView.AppId;
+        }
+    }
+
+    private void ShowImportSummary(int requested, int added)
+    {
+        var skipped = requested - added;
+        if (skipped <= 0) return;
+
+        dialogService.ShowInformation(
+            "Import",
+            $"{added} AppID(s) added.\n{skipped} skipped because they were invalid or already in the preset.");
     }
 
     private void AppIdsListBox_KeyDown(object sender, KeyEventArgs e)
@@ -275,7 +350,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ResetPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        greenLumaService.ClearAppList();
+        if (!ShowIfFailed(greenLumaService.ClearAppList())) return;
         dialogService.ShowInformation(
             "Clear IDs",
             "Loaded App IDs were cleared from Steam.");
@@ -311,62 +386,79 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             dialogService.ShowError(
                 "Error",
-                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.");
+                "No GreenLuma archive found. Place GreenLuma.rar next to GreenLuma Presets, or copy \"appsettings.example.json\" to \"appsettings.json\" and set GreenLumaArchivePath or GreenLumaArchiveUrl.");
             return;
         }
 
         var response = dialogService.ShowQuestion(
             "Add Exclusion?",
-            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.");
+            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.\n\nWindows will ask for administrator permission.");
 
-        var shouldAddExclusion = response == MessageBoxResult.Yes;
+        if (response == MessageBoxResult.Yes)
+        {
+            Result exclusionResult;
+            Mouse.OverrideCursor = Cursors.Wait;
+            try
+            {
+                exclusionResult = await greenLumaService.AddDefenderExclusionAsync();
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
 
-        Mouse.OverrideCursor = Cursors.Wait;
+            if (exclusionResult.IsFailed)
+            {
+                var continueResponse = dialogService.ShowQuestion(
+                    "Exclusion not added",
+                    $"{exclusionResult.Errors.First().Message}\n\nContinue the installation without the exclusion?");
+                if (continueResponse != MessageBoxResult.Yes) return;
+            }
+        }
 
-        var localArchivePath = App.Current.Settings.GreenLumaArchivePath ?? string.Empty;
+        var localArchivePath = App.Current.Settings.ResolvedGreenLumaArchivePath;
         var filesUrlDownload = App.Current.Settings.GreenLumaArchiveUrl ?? string.Empty;
 
-        var result = useLocalGreenLumaArchive ? 
-            greenLumaService.InstallGreenLumaOffline(localArchivePath, shouldAddExclusion) : 
-            await greenLumaService.InstallGreenLuma(filesUrlDownload, shouldAddExclusion);
+        Result result;
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            var expectedSha256 = App.Current.Settings.GreenLumaArchiveSha256;
+            result = useLocalGreenLumaArchive
+                ? await greenLumaService.InstallGreenLumaFromArchiveAsync(localArchivePath, expectedSha256)
+                : await greenLumaService.InstallGreenLumaFromUrlAsync(filesUrlDownload, expectedSha256);
+            IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
 
-        if (result.IsSuccess)
+        if (ShowIfFailed(result))
         {
             dialogService.ShowInformation("Success", "GreenLuma has been successfully installed.");
         }
-        else
-        {
-            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
-        }
-
-        if (result.IsSuccess)
-        {
-            IsGreenLumaInstalled = true;
-        }
-
-        Mouse.OverrideCursor = null;
     }
 
     public void UninstallGreenLumaButton_Click(object sender, RoutedEventArgs e)
     {
+        Result result;
         Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            result = greenLumaService.UninstallGreenLuma();
+            // Re-check the files: a partial uninstall may have removed only some of them.
+            IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
 
-        var result = greenLumaService.UninstallGreenLuma();
-        if (result.IsSuccess)
+        if (ShowIfFailed(result))
         {
             dialogService.ShowInformation("Success", "GreenLuma has been successfully uninstalled.");
         }
-        else
-        {
-            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
-        }
-
-        if (result.IsSuccess)
-        {
-            IsGreenLumaInstalled = false;
-        }
-
-        Mouse.OverrideCursor = null;
     }
 
     private void InstallUninstallGreenLumaMenuItem_Click(object sender, RoutedEventArgs e)

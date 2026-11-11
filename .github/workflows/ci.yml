@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore GreenLumaPresets.sln
+
+      - name: Build
+        run: dotnet build GreenLumaPresets.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test GreenLumaPresets.sln --configuration Release --no-build --verbosity normal

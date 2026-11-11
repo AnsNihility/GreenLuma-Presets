@@ -23,6 +23,9 @@ namespace GreenLumaPresets.Models.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("PresetId")
                         .HasColumnType("TEXT");
 
@@ -31,6 +34,8 @@ namespace GreenLumaPresets.Models.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PresetId", "Position");
 
                     b.ToTable("AppIds");
                 });

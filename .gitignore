@@ -345,3 +345,14 @@ ASALocalRun/
 Network Trash Folder
 Temporary Items
 .apdisk
+# Local data and release artifacts
+presets.db
+*.db-shm
+*.db-wal
+*.zip
+*.rar
+logs/
+artifacts/
+
+# Local configuration (the template is appsettings.example.json)
+GreenLumaPresets/appsettings.json
