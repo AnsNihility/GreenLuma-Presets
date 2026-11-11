@@ -25,9 +25,8 @@ public class AppDbContext : DbContext
     {
         if (optionsBuilder.IsConfigured) return;
 
-        // Resolve next to the executable so the database does not depend on the working directory
-        // (shortcuts with another "Start in" folder, restarts by the updater, ...).
-        var databasePath = Path.Combine(AppContext.BaseDirectory, "presets.db");
-        optionsBuilder.UseSqlite($"Data Source={databasePath};Mode=ReadWriteCreate");
+        // Per-user folder: writable without administrator rights and independent of the working directory.
+        Directory.CreateDirectory(AppPaths.DataDirectory);
+        optionsBuilder.UseSqlite($"Data Source={AppPaths.DatabasePath};Mode=ReadWriteCreate");
     }
 }

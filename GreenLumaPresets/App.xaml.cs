@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -91,6 +92,20 @@ public partial class App : Application
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Versions up to 1.3.x stored the database next to the executable: copy it once to the per-user folder.
+    /// The original file is kept as a backup.
+    /// </summary>
+    private static void MoveLegacyDatabase(ILogger logger)
+    {
+        if (File.Exists(AppPaths.DatabasePath) || !File.Exists(AppPaths.LegacyDatabasePath)) return;
+
+        Directory.CreateDirectory(AppPaths.DataDirectory);
+        File.Copy(AppPaths.LegacyDatabasePath, AppPaths.DatabasePath);
+        logger.LogInformation("Copied the presets database from {Legacy} to {Current}",
+            AppPaths.LegacyDatabasePath, AppPaths.DatabasePath);
+    }
+
     private static IServiceProvider ConfigureServices(ILoggerFactory loggerFactory)
     {
         var services = new ServiceCollection();
@@ -105,6 +120,8 @@ public partial class App : Application
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();
+
+        MoveLegacyDatabase(loggerFactory.CreateLogger<App>());
 
         using (var scope = serviceProvider.CreateScope())
         {

@@ -276,11 +276,7 @@ public class GreenLumaService
     {
         // One cache entry per URL so changing the URL in the settings triggers a new download.
         var urlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..16];
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GreenLumaPresets",
-            "cache",
-            $"greenluma-{urlHash}.rar");
+        return Path.Combine(AppPaths.CacheDirectory, $"greenluma-{urlHash}.rar");
     }
 
     /// <summary>

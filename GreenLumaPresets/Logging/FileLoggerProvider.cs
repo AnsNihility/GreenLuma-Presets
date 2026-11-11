@@ -28,10 +28,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
         }
     }
 
-    public static string DefaultDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "GreenLumaPresets",
-        "logs");
+    public static string DefaultDirectory => AppPaths.LogsDirectory;
 
     public ILogger CreateLogger(string categoryName) => new FileLogger(this, categoryName);
 
