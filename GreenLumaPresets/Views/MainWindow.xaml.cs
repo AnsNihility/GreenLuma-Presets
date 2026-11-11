@@ -424,8 +424,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             result = useLocalGreenLumaArchive
-                ? greenLumaService.InstallGreenLumaOffline(localArchivePath)
-                : await greenLumaService.InstallGreenLuma(filesUrlDownload);
+                ? await greenLumaService.InstallGreenLumaFromArchiveAsync(localArchivePath)
+                : await greenLumaService.InstallGreenLumaFromUrlAsync(filesUrlDownload);
             IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
         }
         finally

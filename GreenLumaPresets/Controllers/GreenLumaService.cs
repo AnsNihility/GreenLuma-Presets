@@ -165,7 +165,7 @@ public class GreenLumaService
     /// <summary>
     /// Installs GreenLuma from a local archive containing the user32.dll and DeleteSteamAppCache.exe
     /// </summary>
-    public Result InstallGreenLumaOffline(string pathToArchive)
+    public async Task<Result> InstallGreenLumaFromArchiveAsync(string pathToArchive)
     {
         if (!IsSteamFound)
         {
@@ -178,29 +178,13 @@ public class GreenLumaService
             return Result.Fail("Archive path is empty or file does not exist");
         }
 
-        try
-        {
-            using var archive = ArchiveFactory.Open(pathToArchive);
-            foreach (var entry in archive.Entries)
-            {
-                if (entry.IsDirectory) continue;
-                entry.WriteToDirectory(pathToSteam, new ExtractionOptions()
-                {
-                    ExtractFullPath = true,
-                    Overwrite = true,
-                });
-            }
-            logger.LogInformation("GreenLuma files installed successfully.");
-            return Result.Ok();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError($"Failed to install GreenLuma files: {ex.Message}");
-            return Result.Fail($"Failed to install GreenLuma files: {ex.Message}");
-        }
+        return await Task.Run(() => ExtractToSteamDirectory(pathToArchive));
     }
 
-    public async Task<Result> InstallGreenLuma(string greenLumaFilesUrl)
+    /// <summary>
+    /// Downloads the GreenLuma archive (cached for a year) and installs it.
+    /// </summary>
+    public async Task<Result> InstallGreenLumaFromUrlAsync(string greenLumaFilesUrl)
     {
         if (!IsSteamFound)
         {
@@ -226,8 +210,21 @@ public class GreenLumaService
                 await using var localStream = new FileStream(rarFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
                 await remoteStream.CopyToAsync(localStream);
             }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to download GreenLuma from {Url}", greenLumaFilesUrl);
+            return Result.Fail($"Failed to download GreenLuma: {ex.Message}");
+        }
 
-            using var archive = ArchiveFactory.Open(rarFilePath);
+        return await Task.Run(() => ExtractToSteamDirectory(rarFilePath));
+    }
+
+    private Result ExtractToSteamDirectory(string archivePath)
+    {
+        try
+        {
+            using var archive = ArchiveFactory.Open(archivePath);
             foreach (var entry in archive.Entries)
             {
                 if (entry.IsDirectory) continue;
@@ -243,7 +240,7 @@ public class GreenLumaService
         }
         catch (Exception ex)
         {
-            logger.LogError($"Failed to install GreenLuma files: {ex.Message}");
+            logger.LogError(ex, "Failed to install GreenLuma files");
             return Result.Fail($"Failed to install GreenLuma files: {ex.Message}");
         }
     }
