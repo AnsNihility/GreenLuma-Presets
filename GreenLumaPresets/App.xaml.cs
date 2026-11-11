@@ -22,8 +22,8 @@ public partial class App : Application
     public App()
     {
         var builder = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
         this.Configuration = builder.Build();
         this.Services = ConfigureServices();

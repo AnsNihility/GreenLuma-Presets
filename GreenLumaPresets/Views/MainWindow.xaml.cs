@@ -323,7 +323,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         Mouse.OverrideCursor = Cursors.Wait;
 
-        var localArchivePath = App.Current.Settings.GreenLumaArchivePath ?? string.Empty;
+        var localArchivePath = App.Current.Settings.ResolvedGreenLumaArchivePath;
         var filesUrlDownload = App.Current.Settings.GreenLumaArchiveUrl ?? string.Empty;
 
         var result = useLocalGreenLumaArchive ? 
