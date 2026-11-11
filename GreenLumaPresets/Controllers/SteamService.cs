@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
+﻿using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentResults;
@@ -12,16 +7,25 @@ namespace GreenLumaPresets.Controllers;
 
 public class SteamService
 {
-    public SteamService()
+    private const string ConnectionErrorMessage = "Couldn't connect to Steam API";
+
+    // A single HttpClient for the app lifetime avoids socket exhaustion.
+    private static readonly HttpClient SharedClient = new() { Timeout = TimeSpan.FromSeconds(20) };
+
+    private readonly HttpClient client;
+
+    public SteamService() : this(SharedClient)
     {
+    }
+
+    public SteamService(HttpClient client)
+    {
+        this.client = client;
     }
 
     public async Task<Result<SteamApp>> GetAppData(int appId)
     {
-        string url = $"http://store.steampowered.com/api/appdetails/?appids={appId}";
-
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.Add("Host", "store.steampowered.com");
+        string url = $"https://store.steampowered.com/api/appdetails/?appids={appId}";
 
         try
         {
@@ -44,11 +48,13 @@ public class SteamService
 
             return SteamApp.From(appResponse.data);
         }
-        catch(Exception err)
+        catch (Exception err) when (err is HttpRequestException or TaskCanceledException)
         {
-            if (err.Source == "System.Net.Http")
-                return Result.Fail("Couldn't connect to Steam API");
-            return Result.Fail(err.Message);
+            return Result.Fail(ConnectionErrorMessage);
+        }
+        catch (JsonException)
+        {
+            return Result.Fail("Couldn't read Steam's response");
         }
     }
 
@@ -60,8 +66,6 @@ public class SteamService
         }
 
         string url = $"https://store.steampowered.com/api/storesearch/?term={Uri.EscapeDataString(name)}&l=english&cc=US";
-
-        using HttpClient client = new();
 
         try
         {
@@ -89,11 +93,13 @@ public class SteamService
 
             return Result.Ok(results);
         }
-        catch (Exception err)
+        catch (Exception err) when (err is HttpRequestException or TaskCanceledException)
         {
-            if (err.Source == "System.Net.Http")
-                return Result.Fail("Couldn't connect to Steam API");
-            return Result.Fail(err.Message);
+            return Result.Fail(ConnectionErrorMessage);
+        }
+        catch (JsonException)
+        {
+            return Result.Fail("Couldn't read Steam's response");
         }
     }
 }
