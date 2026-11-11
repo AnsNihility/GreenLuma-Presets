@@ -29,22 +29,26 @@ public class GreenLumaService
         }
     }
 
+    private const string SteamNotFoundMessage = "Steam installation not found. Make sure Steam is installed and has been launched at least once.";
+
+    public bool IsSteamFound => !string.IsNullOrEmpty(pathToSteam) && Directory.Exists(pathToSteam);
+
     public bool IsGreenLumaInstalled()
     {
-        return File.Exists(Path.Combine(pathToSteam, "User32.dll"));
+        return IsSteamFound && File.Exists(Path.Combine(pathToSteam, "User32.dll"));
     }
 
     public bool IsDeleteCacheExeInstalled()
     {
-        return File.Exists(Path.Combine(pathToSteam, "DeleteSteamAppCache.exe"));
+        return IsSteamFound && File.Exists(Path.Combine(pathToSteam, "DeleteSteamAppCache.exe"));
     }
 
-    public void LoadAppList(Guid presetId)
+    public Result LoadAppList(Guid presetId)
     {
-        if (string.IsNullOrEmpty(pathToSteam)) return;
+        var clearResult = ClearAppList();
+        if (clearResult.IsFailed) return clearResult;
 
         var appListPath = Path.Combine(pathToSteam, "AppList");
-        ClearAppList();
 
         var appIds = dbContext.AppIds
             .Where(x => x.PresetId == presetId)
@@ -55,18 +59,18 @@ public class GreenLumaService
             var appFilePath = Path.Combine(appListPath, $"{i}.txt");
             File.WriteAllText(appFilePath, appIds[i].ToString());
         }
-        return;
+        return Result.Ok();
     }
 
-    public void RestartSteam()
+    public Result RestartSteam()
     {
-        if (string.IsNullOrEmpty(pathToSteam)) return;
+        if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
         var steamExePath = Path.Combine(pathToSteam, "Steam.exe");
         if (!File.Exists(steamExePath))
         {
             logger.LogWarning("Steam.exe not found");
-            return;
+            return Result.Fail("Steam.exe not found in the Steam folder");
         }
 
         var steamProcesses = Process.GetProcessesByName("Steam");
@@ -96,10 +100,13 @@ public class GreenLumaService
         };
 
         process.Start();
+        return Result.Ok();
     }
 
-    public void ClearAppList()
+    public Result ClearAppList()
     {
+        if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
+
         var appListPath = Path.Combine(pathToSteam, "AppList");
         if (!Directory.Exists(appListPath))
         {
@@ -110,11 +117,12 @@ public class GreenLumaService
         {
             File.Delete(file);
         }
+        return Result.Ok();
     }
 
     public void DeleteSteamAppCache()
     {
-        if (string.IsNullOrEmpty(pathToSteam)) return;
+        if (!IsSteamFound) return;
         var deleteCacheExePath = Path.Combine(pathToSteam, "DeleteSteamAppCache.exe");
         if (!File.Exists(deleteCacheExePath))
         {
@@ -147,10 +155,10 @@ public class GreenLumaService
     /// <param name="addExclusion"></param>
     public Result InstallGreenLumaOffline(string pathToArchive, bool addExclusion)
     {
-        if (string.IsNullOrEmpty(pathToSteam))
+        if (!IsSteamFound)
         {
             logger.LogWarning("Steam path not found, cannot install GreenLuma files.");
-            return Result.Fail("Steam path not found");
+            return Result.Fail(SteamNotFoundMessage);
         }
         if (string.IsNullOrEmpty(pathToArchive) || !File.Exists(pathToArchive))
         {
@@ -184,10 +192,10 @@ public class GreenLumaService
 
     public async Task<Result> InstallGreenLuma(string greenLumaFilesUrl, bool addExclusion)
     {
-        if (string.IsNullOrEmpty(pathToSteam))
+        if (!IsSteamFound)
         {
             logger.LogWarning("Steam path not found, cannot install GreenLuma files.");
-            return Result.Fail("Steam path not found");
+            return Result.Fail(SteamNotFoundMessage);
         }
         if (string.IsNullOrEmpty(greenLumaFilesUrl))
         {
@@ -234,7 +242,7 @@ public class GreenLumaService
 
     public Result UninstallGreenLuma()
     {
-        if (string.IsNullOrEmpty(pathToSteam)) return Result.Fail("Steam path not found");
+        if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
         var user32Path = Path.Combine(pathToSteam, "user32.dll");
         if (File.Exists(user32Path))

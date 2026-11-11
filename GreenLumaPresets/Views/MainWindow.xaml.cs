@@ -91,19 +91,44 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        Mouse.OverrideCursor = Cursors.Wait;
         if (SelectedPreset == null) return;
-        greenLumaService.LoadAppList(SelectedPreset.Id);
-        Mouse.OverrideCursor = null;
+
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            ShowIfFailed(greenLumaService.LoadAppList(SelectedPreset.Id));
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
     }
 
     private void LoadAndLaunchSteamButton_Click(object sender, RoutedEventArgs e)
     {
-        Mouse.OverrideCursor = Cursors.Wait;
         if (SelectedPreset == null) return;
-        greenLumaService.LoadAppList(SelectedPreset.Id);
-        greenLumaService.RestartSteam();
-        Mouse.OverrideCursor = null;
+
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            if (!ShowIfFailed(greenLumaService.LoadAppList(SelectedPreset.Id))) return;
+            ShowIfFailed(greenLumaService.RestartSteam());
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+
+    /// <summary>
+    /// Shows a warning dialog when the result failed.
+    /// </summary>
+    /// <returns>true when the result succeeded.</returns>
+    private bool ShowIfFailed(Result result)
+    {
+        if (result.IsSuccess) return true;
+        dialogService.ShowWarning("Failed", string.Join("\n", result.Errors.Select(x => x.Message)));
+        return false;
     }
 
     private void DeleteAppIdMenuItem_Click(object sender, RoutedEventArgs e)
@@ -275,7 +300,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ResetPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        greenLumaService.ClearAppList();
+        if (!ShowIfFailed(greenLumaService.ClearAppList())) return;
         dialogService.ShowInformation(
             "Clear IDs",
             "Loaded App IDs were cleared from Steam.");
