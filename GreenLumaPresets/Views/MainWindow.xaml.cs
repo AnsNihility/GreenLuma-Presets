@@ -394,32 +394,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             "Add Exclusion?",
             "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.");
 
-        var shouldAddExclusion = response == MessageBoxResult.Yes;
+        if (response == MessageBoxResult.Yes)
+        {
+            Result exclusionResult;
+            Mouse.OverrideCursor = Cursors.Wait;
+            try
+            {
+                exclusionResult = await greenLumaService.AddDefenderExclusionAsync();
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
 
-        Mouse.OverrideCursor = Cursors.Wait;
+            if (exclusionResult.IsFailed)
+            {
+                var continueResponse = dialogService.ShowQuestion(
+                    "Exclusion not added",
+                    $"{exclusionResult.Errors.First().Message}\n\nContinue the installation without the exclusion?");
+                if (continueResponse != MessageBoxResult.Yes) return;
+            }
+        }
 
         var localArchivePath = App.Current.Settings.ResolvedGreenLumaArchivePath;
         var filesUrlDownload = App.Current.Settings.GreenLumaArchiveUrl ?? string.Empty;
 
-        var result = useLocalGreenLumaArchive ? 
-            greenLumaService.InstallGreenLumaOffline(localArchivePath, shouldAddExclusion) : 
-            await greenLumaService.InstallGreenLuma(filesUrlDownload, shouldAddExclusion);
+        Result result;
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            result = useLocalGreenLumaArchive
+                ? greenLumaService.InstallGreenLumaOffline(localArchivePath)
+                : await greenLumaService.InstallGreenLuma(filesUrlDownload);
+            IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
 
-        if (result.IsSuccess)
+        if (ShowIfFailed(result))
         {
             dialogService.ShowInformation("Success", "GreenLuma has been successfully installed.");
         }
-        else
-        {
-            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
-        }
-
-        if (result.IsSuccess)
-        {
-            IsGreenLumaInstalled = true;
-        }
-
-        Mouse.OverrideCursor = null;
     }
 
     public void UninstallGreenLumaButton_Click(object sender, RoutedEventArgs e)

@@ -8,6 +8,7 @@ using SharpCompress.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Security.Principal;
 using System.Text;
 
 namespace GreenLumaPresets.Controllers;
@@ -164,9 +165,7 @@ public class GreenLumaService
     /// <summary>
     /// Installs GreenLuma from a local archive containing the user32.dll and DeleteSteamAppCache.exe
     /// </summary>
-    /// <param name="pathToArchive"></param>
-    /// <param name="addExclusion"></param>
-    public Result InstallGreenLumaOffline(string pathToArchive, bool addExclusion)
+    public Result InstallGreenLumaOffline(string pathToArchive)
     {
         if (!IsSteamFound)
         {
@@ -178,8 +177,6 @@ public class GreenLumaService
             logger.LogWarning("Archive path is empty or file does not exist, cannot proceed with installation.");
             return Result.Fail("Archive path is empty or file does not exist");
         }
-
-        if (addExclusion) AddExclusionOnSteamDirectory();
 
         try
         {
@@ -203,7 +200,7 @@ public class GreenLumaService
         }
     }
 
-    public async Task<Result> InstallGreenLuma(string greenLumaFilesUrl, bool addExclusion)
+    public async Task<Result> InstallGreenLuma(string greenLumaFilesUrl)
     {
         if (!IsSteamFound)
         {
@@ -215,8 +212,6 @@ public class GreenLumaService
             logger.LogWarning("GreenLuma files URL is empty, cannot proceed with installation.");
             return Result.Fail("GreenLuma files URL is empty");
         }
-
-        if (addExclusion) AddExclusionOnSteamDirectory();
 
         var rarFilePath = Path.Combine(pathToSteam, "downloaded.rar");
         try
@@ -285,17 +280,53 @@ public class GreenLumaService
         return Result.Ok();
     }
 
-    // NEEDS THE ADMINISTRATOR RIGHTS TO WORK
-    private void AddExclusionOnSteamDirectory()
+    /// <summary>
+    /// Adds the Steam folder to the Windows Defender exclusions. Requires administrator rights.
+    /// </summary>
+    public async Task<Result> AddDefenderExclusionAsync()
     {
-        Process process = new Process();
-        process.StartInfo.FileName = "powershell";
-        process.StartInfo.Arguments = $"-inputformat none -outputformat none -NonInteractive -Command \"Add-MpPreference -ExclusionPath '{pathToSteam}' \"";
+        if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
-        process.Start();
-        process.WaitForExit();
+        using var identity = WindowsIdentity.GetCurrent();
+        if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
+        {
+            return Result.Fail("Adding a Windows Defender exclusion requires running GreenLuma Presets as administrator.");
+        }
 
-        var code = process.ExitCode;
+        // Single quotes are the only character to escape inside a PowerShell single-quoted string.
+        var escapedPath = pathToSteam.Replace("'", "''");
+        var startInfo = new ProcessStartInfo("powershell")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+        };
+        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-Command", $"Add-MpPreference -ExclusionPath '{escapedPath}'" })
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("Couldn't start PowerShell");
+            var errorOutput = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0 || !string.IsNullOrWhiteSpace(errorOutput))
+            {
+                logger.LogError("Add-MpPreference failed with exit code {ExitCode}: {Error}", process.ExitCode, errorOutput);
+                return Result.Fail("Windows Defender refused the exclusion. It may be managed by another antivirus or by your organization.");
+            }
+
+            logger.LogInformation("Windows Defender exclusion added for {Path}", pathToSteam);
+            return Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to add the Windows Defender exclusion");
+            return Result.Fail($"Failed to add the Windows Defender exclusion: {ex.Message}");
+        }
     }
 
     private bool TryGetSteamPath(out string path)
