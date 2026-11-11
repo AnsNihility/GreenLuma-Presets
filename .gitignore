@@ -352,3 +352,4 @@ presets.db
 *.zip
 *.rar
 logs/
+artifacts/
