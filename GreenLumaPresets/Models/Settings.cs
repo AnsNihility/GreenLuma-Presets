@@ -8,6 +8,11 @@ public class Settings
     public string? GreenLumaArchivePath { get; init; } = string.Empty;
 
     /// <summary>
+    /// Optional SHA-256 (hex) the GreenLuma archive must match before being extracted into the Steam folder.
+    /// </summary>
+    public string? GreenLumaArchiveSha256 { get; init; } = string.Empty;
+
+    /// <summary>
     /// Maximum number of AppIDs supported by the installed GreenLuma version.
     /// A confirmation is asked before loading a bigger preset. Null or 0 disables the check.
     /// </summary>

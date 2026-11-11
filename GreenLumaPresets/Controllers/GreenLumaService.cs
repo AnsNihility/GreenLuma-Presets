@@ -8,6 +8,7 @@ using SharpCompress.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
 
@@ -165,7 +166,8 @@ public class GreenLumaService
     /// <summary>
     /// Installs GreenLuma from a local archive containing the user32.dll and DeleteSteamAppCache.exe
     /// </summary>
-    public async Task<Result> InstallGreenLumaFromArchiveAsync(string pathToArchive)
+    /// <param name="expectedSha256">Optional SHA-256 the archive must match.</param>
+    public async Task<Result> InstallGreenLumaFromArchiveAsync(string pathToArchive, string? expectedSha256 = null)
     {
         if (!IsSteamFound)
         {
@@ -178,13 +180,19 @@ public class GreenLumaService
             return Result.Fail("Archive path is empty or file does not exist");
         }
 
+        if (!await MatchesSha256Async(pathToArchive, expectedSha256))
+        {
+            return Result.Fail("The GreenLuma archive doesn't match the configured SHA-256 checksum. It may be corrupted or tampered with.");
+        }
+
         return await Task.Run(() => ExtractToSteamDirectory(pathToArchive));
     }
 
     /// <summary>
-    /// Downloads the GreenLuma archive (cached for a year) and installs it.
+    /// Downloads the GreenLuma archive (cached per URL for a year) and installs it.
     /// </summary>
-    public async Task<Result> InstallGreenLumaFromUrlAsync(string greenLumaFilesUrl)
+    /// <param name="expectedSha256">Optional SHA-256 the archive must match.</param>
+    public async Task<Result> InstallGreenLumaFromUrlAsync(string greenLumaFilesUrl, string? expectedSha256 = null)
     {
         if (!IsSteamFound)
         {
@@ -197,18 +205,37 @@ public class GreenLumaService
             return Result.Fail("GreenLuma files URL is empty");
         }
 
-        var rarFilePath = Path.Combine(pathToSteam, "downloaded.rar");
+        DeleteLegacyDownloadCache();
+
+        var rarFilePath = GetDownloadCachePath(greenLumaFilesUrl);
         try
         {
-            if (!File.Exists(rarFilePath) ||
-                File.GetLastWriteTime(rarFilePath) < DateTime.Now.AddYears(-1))
+            var isCacheUsable = File.Exists(rarFilePath)
+                && File.GetLastWriteTime(rarFilePath) >= DateTime.Now.AddYears(-1)
+                && await MatchesSha256Async(rarFilePath, expectedSha256);
+
+            if (!isCacheUsable)
             {
-                using var client = new HttpClient();
-                using var response = await client.GetAsync(greenLumaFilesUrl, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-                await using var remoteStream = await response.Content.ReadAsStreamAsync();
-                await using var localStream = new FileStream(rarFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await remoteStream.CopyToAsync(localStream);
+                Directory.CreateDirectory(Path.GetDirectoryName(rarFilePath)!);
+                var partialFilePath = rarFilePath + ".part";
+
+                using (var client = new HttpClient())
+                using (var response = await client.GetAsync(greenLumaFilesUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    response.EnsureSuccessStatusCode();
+                    await using var remoteStream = await response.Content.ReadAsStreamAsync();
+                    await using var localStream = new FileStream(partialFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                    await remoteStream.CopyToAsync(localStream);
+                }
+
+                if (!await MatchesSha256Async(partialFilePath, expectedSha256))
+                {
+                    File.Delete(partialFilePath);
+                    logger.LogError("Downloaded GreenLuma archive from {Url} doesn't match the configured SHA-256", greenLumaFilesUrl);
+                    return Result.Fail("The downloaded GreenLuma archive doesn't match the configured SHA-256 checksum. It may be corrupted or tampered with.");
+                }
+
+                File.Move(partialFilePath, rarFilePath, overwrite: true);
             }
         }
         catch (Exception ex)
@@ -218,6 +245,42 @@ public class GreenLumaService
         }
 
         return await Task.Run(() => ExtractToSteamDirectory(rarFilePath));
+    }
+
+    private static string GetDownloadCachePath(string url)
+    {
+        // One cache entry per URL so changing the URL in the settings triggers a new download.
+        var urlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..16];
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GreenLumaPresets",
+            "cache",
+            $"greenluma-{urlHash}.rar");
+    }
+
+    /// <summary>
+    /// Older versions cached the archive in the Steam folder.
+    /// </summary>
+    private void DeleteLegacyDownloadCache()
+    {
+        var legacyPath = Path.Combine(pathToSteam, "downloaded.rar");
+        try
+        {
+            if (File.Exists(legacyPath)) File.Delete(legacyPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Couldn't delete the legacy download cache {Path}", legacyPath);
+        }
+    }
+
+    private static async Task<bool> MatchesSha256Async(string filePath, string? expectedSha256)
+    {
+        if (string.IsNullOrWhiteSpace(expectedSha256)) return true;
+
+        await using var stream = File.OpenRead(filePath);
+        var actual = Convert.ToHexString(await SHA256.HashDataAsync(stream));
+        return string.Equals(actual, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private Result ExtractToSteamDirectory(string archivePath)

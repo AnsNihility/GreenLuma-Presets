@@ -423,9 +423,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Mouse.OverrideCursor = Cursors.Wait;
         try
         {
+            var expectedSha256 = App.Current.Settings.GreenLumaArchiveSha256;
             result = useLocalGreenLumaArchive
-                ? await greenLumaService.InstallGreenLumaFromArchiveAsync(localArchivePath)
-                : await greenLumaService.InstallGreenLumaFromUrlAsync(filesUrlDownload);
+                ? await greenLumaService.InstallGreenLumaFromArchiveAsync(localArchivePath, expectedSha256)
+                : await greenLumaService.InstallGreenLumaFromUrlAsync(filesUrlDownload, expectedSha256);
             IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
         }
         finally
