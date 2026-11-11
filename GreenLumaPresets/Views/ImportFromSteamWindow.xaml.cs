@@ -10,14 +10,14 @@ namespace GreenLumaPresets.Views;
 
 public partial class ImportFromSteamWindow : Window, INotifyPropertyChanged
 {
-    private readonly SteamService steamDbService;
+    private readonly ISteamService steamDbService;
     private string? errorMessage;
     private const string AppIdPlaceholder = "e.g., 730";
     private const string AppNamePlaceholder = "e.g., Counter-Strike 2";
 
     public ImportFromSteamWindow(Window owner)
     {
-        this.steamDbService = App.Current.Services.GetService<SteamService>()
+        this.steamDbService = App.Current.Services.GetService<ISteamService>()
             ?? throw new ArgumentException(nameof(steamDbService));
 
         this.Owner = owner;

@@ -23,11 +23,11 @@ public class DialogService : IDialogService
         dialog.ShowDialog();
     }
 
-    public MessageBoxResult ShowQuestion(string title, string message)
+    public bool Confirm(string title, string message)
     {
         var dialog = new DialogWindow(title, message, DialogType.Question);
         dialog.ShowDialog();
-        return dialog.Result;
+        return dialog.Result == MessageBoxResult.Yes;
     }
 }
 

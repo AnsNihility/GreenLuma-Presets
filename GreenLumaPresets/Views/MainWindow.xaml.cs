@@ -15,9 +15,9 @@ namespace GreenLumaPresets;
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
-    private readonly PresetsService presetsService;
-    private readonly GreenLumaService greenLumaService;
-    private readonly UpdateService updateService;
+    private readonly IPresetsService presetsService;
+    private readonly IGreenLumaService greenLumaService;
+    private readonly IUpdateService updateService;
     private readonly IDialogService dialogService;
     private PresetView? selectedPreset;
     private bool isGreenLumaInstalled;
@@ -30,13 +30,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         InitializeComponent();
 
-        presetsService = App.Current.Services.GetService<PresetsService>()
+        presetsService = App.Current.Services.GetService<IPresetsService>()
             ?? throw new ArgumentException(nameof(presetsService));
 
-        greenLumaService = App.Current.Services.GetService<GreenLumaService>() 
+        greenLumaService = App.Current.Services.GetService<IGreenLumaService>() 
             ?? throw new ArgumentException(nameof(greenLumaService));
 
-        updateService = App.Current.Services.GetService<UpdateService>()
+        updateService = App.Current.Services.GetService<IUpdateService>()
             ?? throw new ArgumentException(nameof(updateService));
 
         dialogService = App.Current.Services.GetService<IDialogService>()
@@ -129,11 +129,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var maxSize = App.Current.Settings.MaxAppListSize;
         if (maxSize is not > 0 || preset.AppIds.Count <= maxSize) return true;
 
-        var response = dialogService.ShowQuestion(
+        return dialogService.Confirm(
             "Preset too large",
             $"This preset contains {preset.AppIds.Count} AppIDs but GreenLuma is configured to support {maxSize}. "
             + "AppIDs beyond the limit may be ignored by GreenLuma.\n\nLoad it anyway?");
-        return response == MessageBoxResult.Yes;
     }
 
     /// <summary>
@@ -389,11 +388,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var response = dialogService.ShowQuestion(
+        var addExclusion = dialogService.Confirm(
             "Add Exclusion?",
             "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.\n\nWindows will ask for administrator permission.");
 
-        if (response == MessageBoxResult.Yes)
+        if (addExclusion)
         {
             Result exclusionResult;
             Mouse.OverrideCursor = Cursors.Wait;
@@ -408,10 +407,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             if (exclusionResult.IsFailed)
             {
-                var continueResponse = dialogService.ShowQuestion(
+                var continueInstallation = dialogService.Confirm(
                     "Exclusion not added",
                     $"{exclusionResult.Errors.First().Message}\n\nContinue the installation without the exclusion?");
-                if (continueResponse != MessageBoxResult.Yes) return;
+                if (!continueInstallation) return;
             }
         }
 

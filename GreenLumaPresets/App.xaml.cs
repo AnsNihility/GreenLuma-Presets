@@ -35,9 +35,9 @@ public partial class App : Application
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
         this.Configuration = builder.Build();
-        this.Services = ConfigureServices(loggerFactory);
         this.Settings = Configuration.GetSection("Settings").Get<Settings>()
             ?? new Settings();
+        this.Services = ConfigureServices(loggerFactory, Settings);
 
         this.InitializeComponent();
     }
@@ -47,7 +47,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         // Check for updates on startup (silently, without "no update" message)
-        var updateService = Services.GetService<UpdateService>();
+        var updateService = Services.GetService<IUpdateService>();
         updateService?.CheckForUpdates(showNoUpdateMessage: false);
     }
 
@@ -105,15 +105,16 @@ public partial class App : Application
             AppPaths.LegacyDatabasePath, AppPaths.DatabasePath);
     }
 
-    private static IServiceProvider ConfigureServices(ILoggerFactory loggerFactory)
+    private static IServiceProvider ConfigureServices(ILoggerFactory loggerFactory, Settings settings)
     {
         var services = new ServiceCollection();
 
+        services.AddSingleton(settings);
         services.AddDbContext<AppDbContext>();
-        services.AddTransient<PresetsService>();
-        services.AddTransient<GreenLumaService>();
-        services.AddTransient<SteamService>();
-        services.AddTransient<UpdateService>();
+        services.AddTransient<IPresetsService, PresetsService>();
+        services.AddTransient<IGreenLumaService, GreenLumaService>();
+        services.AddTransient<ISteamService, SteamService>();
+        services.AddTransient<IUpdateService, UpdateService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton(loggerFactory);
         services.AddLogging();

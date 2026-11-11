@@ -14,7 +14,7 @@ using System.Text.Json;
 
 namespace GreenLumaPresets.Services;
 
-public class GreenLumaService
+public class GreenLumaService : IGreenLumaService
 {
     private readonly AppDbContext dbContext;
     private readonly ILogger<GreenLumaService> logger;

@@ -5,7 +5,7 @@ using FluentResults;
 
 namespace GreenLumaPresets.Services;
 
-public class SteamService
+public class SteamService : ISteamService
 {
     private const string ConnectionErrorMessage = "Couldn't connect to Steam API";
 

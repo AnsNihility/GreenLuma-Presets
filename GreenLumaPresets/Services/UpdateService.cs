@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace GreenLumaPresets.Services;
 
-public class UpdateService
+public class UpdateService : IUpdateService
 {
     private readonly ILogger<UpdateService> logger;
     private const string UpdateXmlUrl = "https://raw.githubusercontent.com/AnsNihility/GreenLuma-Presets/main/update.xml";

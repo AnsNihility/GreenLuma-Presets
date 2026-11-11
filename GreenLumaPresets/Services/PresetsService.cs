@@ -3,7 +3,7 @@ using GreenLumaPresets.Models;
 
 namespace GreenLumaPresets.Services;
 
-public class PresetsService
+public class PresetsService : IPresetsService
 {
     private readonly AppDbContext dbContext;
 
