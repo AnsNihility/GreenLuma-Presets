@@ -8,6 +8,14 @@ public class AppDbContext : DbContext
     public DbSet<Preset> Presets { get; set; }
     public DbSet<AppId> AppIds { get; set; }
 
+    public AppDbContext()
+    {
+    }
+
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppId>().HasIndex(a => new { a.PresetId, a.Position });
@@ -15,6 +23,8 @@ public class AppDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
+        if (optionsBuilder.IsConfigured) return;
+
         // Resolve next to the executable so the database does not depend on the working directory
         // (shortcuts with another "Start in" folder, restarts by the updater, ...).
         var databasePath = Path.Combine(AppContext.BaseDirectory, "presets.db");
