@@ -1,0 +1,81 @@
+name: Release
+
+# Publishes a GitHub release and updates update.xml on main for the auto-updater.
+# Trigger it either by pushing a tag matching the project version (git tag v1.4.0 && git push origin v1.4.0)
+# or with "Run workflow" on main, which tags the current commit with the project version.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve version
+        id: version
+        run: |
+          [xml]$project = Get-Content GreenLumaPresets/GreenLumaPresets.csproj
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          $tag = "v$version"
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -ne $tag) {
+            throw "Tag ${{ github.ref_name }} doesn't match the project version $version"
+          }
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.ref_name }}" -ne "main") {
+            throw "Run the release workflow from main"
+          }
+          if (git ls-remote --tags origin "refs/tags/$tag") {
+            if ("${{ github.ref_type }}" -ne "tag") { throw "Tag $tag already exists: bump the version first" }
+          }
+          if (gh release view $tag 2>$null) { throw "Release $tag already exists" }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          # gh's "not found" exit code would otherwise fail the step.
+          exit 0
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Test
+        run: dotnet test GreenLumaPresets.sln --configuration Release
+
+      - name: Build release archive
+        run: ./scripts/release.ps1 -Repository "${{ github.repository }}"
+
+      - name: Create GitHub release
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" (Get-ChildItem artifacts/*.zip).FullName `
+            --target "${{ github.sha }}" `
+            --title "${{ steps.version.outputs.tag }}" `
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Clients only see the update once update.xml reaches main, i.e. after the archive is published.
+      - name: Publish update.xml to main
+        run: |
+          Copy-Item update.xml "$env:RUNNER_TEMP/update.xml"
+          git fetch origin main
+          git checkout -B main origin/main
+          Copy-Item "$env:RUNNER_TEMP/update.xml" update.xml -Force
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git add update.xml
+          git commit -m "chore(release): update update.xml for ${{ steps.version.outputs.tag }}"
+          git push origin main
