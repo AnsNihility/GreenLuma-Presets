@@ -103,7 +103,8 @@ public record SteamResponse(
     SteamDataResponse? data
 );
 
-public record SteamDataResponse(string name, int? steam_appid, IReadOnlyList<int?> dlc);
+// Steam omits the "dlc" key entirely for apps without DLC, so it must be nullable.
+public record SteamDataResponse(string name, int? steam_appid, IReadOnlyList<int?>? dlc);
 
 public record SteamSearchResult(int AppId, string Name);
 
@@ -126,10 +127,13 @@ public record SteamApp(string Name, List<string> AppIds)
 {
     public static SteamApp From(SteamDataResponse steamDataResponse)
     {
-        List<string> appIds = steamDataResponse.dlc.Where(x => x != null)
-                                          .Select(x => x!.Value.ToString())
-                                          .Prepend(steamDataResponse.steam_appid!.ToString())
-                                          .ToList() ?? [];
+        var dlcIds = (steamDataResponse.dlc ?? [])
+            .Where(x => x != null)
+            .Select(x => x!.Value.ToString());
+
+        List<string> appIds = steamDataResponse.steam_appid is int mainAppId
+            ? dlcIds.Prepend(mainAppId.ToString()).ToList()
+            : dlcIds.ToList();
 
         return new(steamDataResponse.name, appIds);
     }
