@@ -4,11 +4,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
-using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 
@@ -55,7 +55,12 @@ public class GreenLumaService
         "DeleteSteamAppCache.exe",
     };
 
+    /// <summary>ERROR_CANCELLED: the user declined the UAC prompt.</summary>
+    private const int ErrorCancelled = 1223;
+
     private const string SteamNotFoundMessage = "Steam installation not found. Make sure Steam is installed and has been launched at least once.";
+
+    private const string SteamFolderAccessDeniedMessage = "Access to the Steam folder was denied. Close Steam and try again, or run GreenLuma Presets as administrator if the Steam folder is protected.";
 
     public bool IsSteamFound => !string.IsNullOrEmpty(pathToSteam) && Directory.Exists(pathToSteam);
 
@@ -94,10 +99,18 @@ public class GreenLumaService
                 storedValues.Count - appIds.Count, presetId);
         }
 
-        for (int i = 0; i < appIds.Count; i++)
+        try
         {
-            var appFilePath = Path.Combine(appListPath, $"{i}.txt");
-            File.WriteAllText(appFilePath, appIds[i]);
+            for (int i = 0; i < appIds.Count; i++)
+            {
+                var appFilePath = Path.Combine(appListPath, $"{i}.txt");
+                File.WriteAllText(appFilePath, appIds[i]);
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Access denied while writing the AppList");
+            return Result.Fail(SteamFolderAccessDeniedMessage);
         }
         return Result.Ok();
     }
@@ -113,20 +126,18 @@ public class GreenLumaService
             return Result.Fail("Steam.exe not found in the Steam folder");
         }
 
-        var steamProcesses = Process.GetProcessesByName("Steam");
-        if (steamProcesses.Length > 0)
+        foreach (var existingProcess in Process.GetProcessesByName("Steam"))
         {
-            foreach (var existingProcess in steamProcesses)
+            try
             {
-                try
-                {
-                    existingProcess.Kill();
-                    existingProcess.WaitForExit();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError($"Failed to kill Steam process: {ex.Message}");
-                }
+                existingProcess.Kill();
+                existingProcess.WaitForExit();
+            }
+            catch (Exception ex)
+            {
+                // Typically a Steam instance running as administrator, which a non-elevated process can't close.
+                logger.LogError(ex, "Failed to close the Steam process {ProcessId}", existingProcess.Id);
+                return Result.Fail("Couldn't close Steam. Exit Steam manually, then use Load and launch Steam again.");
             }
         }
 
@@ -148,14 +159,18 @@ public class GreenLumaService
         if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
         var appListPath = Path.Combine(pathToSteam, "AppList");
-        if (!Directory.Exists(appListPath))
+        try
         {
             Directory.CreateDirectory(appListPath);
+            foreach (var file in Directory.GetFiles(appListPath))
+            {
+                File.Delete(file);
+            }
         }
-
-        foreach (var file in Directory.GetFiles(appListPath))
+        catch (UnauthorizedAccessException ex)
         {
-            File.Delete(file);
+            logger.LogError(ex, "Access denied while clearing the AppList");
+            return Result.Fail(SteamFolderAccessDeniedMessage);
         }
         return Result.Ok();
     }
@@ -472,27 +487,25 @@ public class GreenLumaService
     }
 
     /// <summary>
-    /// Adds the Steam folder to the Windows Defender exclusions. Requires administrator rights.
+    /// Adds the Steam folder to the Windows Defender exclusions.
+    /// The app runs without administrator rights, so only this command is elevated (UAC prompt).
     /// </summary>
     public async Task<Result> AddDefenderExclusionAsync()
     {
         if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
-        using var identity = WindowsIdentity.GetCurrent();
-        if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
-        {
-            return Result.Fail("Adding a Windows Defender exclusion requires running GreenLuma Presets as administrator.");
-        }
-
         // Single quotes are the only character to escape inside a PowerShell single-quoted string.
         var escapedPath = pathToSteam.Replace("'", "''");
+        var command = $"try {{ Add-MpPreference -ExclusionPath '{escapedPath}' -ErrorAction Stop; exit 0 }} catch {{ exit 1 }}";
+
+        // Elevation requires ShellExecute, which can't redirect output: the exit code reports the outcome.
         var startInfo = new ProcessStartInfo("powershell")
         {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardError = true,
+            UseShellExecute = true,
+            Verb = "runas",
+            WindowStyle = ProcessWindowStyle.Hidden,
         };
-        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-Command", $"Add-MpPreference -ExclusionPath '{escapedPath}'" })
+        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command })
         {
             startInfo.ArgumentList.Add(argument);
         }
@@ -501,17 +514,21 @@ public class GreenLumaService
         {
             using var process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("Couldn't start PowerShell");
-            var errorOutput = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
 
-            if (process.ExitCode != 0 || !string.IsNullOrWhiteSpace(errorOutput))
+            if (process.ExitCode != 0)
             {
-                logger.LogError("Add-MpPreference failed with exit code {ExitCode}: {Error}", process.ExitCode, errorOutput);
+                logger.LogError("Add-MpPreference failed with exit code {ExitCode}", process.ExitCode);
                 return Result.Fail("Windows Defender refused the exclusion. It may be managed by another antivirus or by your organization.");
             }
 
             logger.LogInformation("Windows Defender exclusion added for {Path}", pathToSteam);
             return Result.Ok();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
+        {
+            logger.LogInformation("Windows Defender exclusion cancelled at the UAC prompt");
+            return Result.Fail("The administrator permission was declined, so the exclusion wasn't added.");
         }
         catch (Exception ex)
         {

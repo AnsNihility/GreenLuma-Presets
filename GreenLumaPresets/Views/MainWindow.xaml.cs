@@ -392,7 +392,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var response = dialogService.ShowQuestion(
             "Add Exclusion?",
-            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.");
+            "Do you want to add an exclusion to Windows Defender for the Steam folder? This is recommended to prevent issues with GreenLuma.\n\nWindows will ask for administrator permission.");
 
         if (response == MessageBoxResult.Yes)
         {
