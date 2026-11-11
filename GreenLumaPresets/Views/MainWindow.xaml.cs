@@ -386,7 +386,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             dialogService.ShowError(
                 "Error",
-                "GreenLuma download URL and archive path are not set or are invalid in the configuration file \"appsettings.json\". If the archive path is set and valid make sure the file on the path provided exists.");
+                "No GreenLuma archive found. Place GreenLuma.rar next to GreenLuma Presets, or copy \"appsettings.example.json\" to \"appsettings.json\" and set GreenLumaArchivePath or GreenLumaArchiveUrl.");
             return;
         }
 

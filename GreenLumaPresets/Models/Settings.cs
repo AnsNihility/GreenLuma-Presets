@@ -5,7 +5,10 @@ namespace GreenLumaPresets.Models;
 public class Settings
 {
     public string? GreenLumaArchiveUrl { get; init; } = string.Empty;
-    public string? GreenLumaArchivePath { get; init; } = string.Empty;
+    /// <summary>
+    /// Defaults to GreenLuma.rar next to the executable so the app works without any appsettings.json.
+    /// </summary>
+    public string? GreenLumaArchivePath { get; init; } = "GreenLuma.rar";
 
     /// <summary>
     /// Optional SHA-256 (hex) the GreenLuma archive must match before being extracted into the Steam folder.
