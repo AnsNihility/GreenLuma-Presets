@@ -24,9 +24,14 @@ public class PresetsService
 
     public Dictionary<Preset, List<AppId>> GetPresetsWithAppIds()
     {
-        return dbContext.Presets.ToDictionary(
-                p => p, 
-                p => dbContext.AppIds.Where(a => a.PresetId == p.Id).ToList());
+        // Two queries in total instead of one per preset.
+        var appIdsByPreset = dbContext.AppIds
+            .ToList()
+            .ToLookup(a => a.PresetId);
+
+        return dbContext.Presets
+            .ToList()
+            .ToDictionary(p => p, p => appIdsByPreset[p.Id].ToList());
     }
 
     public Preset AddPreset(string name)
