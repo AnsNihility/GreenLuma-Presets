@@ -257,32 +257,28 @@ public class GreenLumaService
     {
         if (!IsSteamFound) return Result.Fail(SteamNotFoundMessage);
 
-        var user32Path = Path.Combine(pathToSteam, "user32.dll");
-        if (File.Exists(user32Path))
+        var errors = new List<string>();
+        foreach (var fileName in new[] { "user32.dll", "DeleteSteamAppCache.exe" })
         {
+            var filePath = Path.Combine(pathToSteam, fileName);
+            if (!File.Exists(filePath)) continue;
+
             try
             {
-                File.Delete(user32Path);
-                logger.LogInformation("user32.dll deleted successfully.");
+                File.Delete(filePath);
+                logger.LogInformation("{FileName} deleted successfully.", fileName);
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to delete user32.dll: {ex.Message}");
+                logger.LogError(ex, "Failed to delete {FileName}", fileName);
+                errors.Add($"Couldn't delete {fileName}: {ex.Message}");
             }
         }
 
-        var deleteCacheExePath = Path.Combine(pathToSteam, "DeleteSteamAppCache.exe");
-        if (File.Exists(deleteCacheExePath))
+        if (errors.Count > 0)
         {
-            try
-            {
-                File.Delete(deleteCacheExePath);
-                logger.LogInformation("DeleteSteamAppCache.exe deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Failed to delete DeleteSteamAppCache.exe: {ex.Message}");
-            }
+            errors.Add("Close Steam and try again.");
+            return Result.Fail(string.Join(Environment.NewLine, errors));
         }
 
         logger.LogInformation("GreenLuma uninstalled successfully.");

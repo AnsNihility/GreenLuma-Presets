@@ -424,24 +424,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public void UninstallGreenLumaButton_Click(object sender, RoutedEventArgs e)
     {
+        Result result;
         Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            result = greenLumaService.UninstallGreenLuma();
+            // Re-check the files: a partial uninstall may have removed only some of them.
+            IsGreenLumaInstalled = greenLumaService.IsGreenLumaInstalled();
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
 
-        var result = greenLumaService.UninstallGreenLuma();
-        if (result.IsSuccess)
+        if (ShowIfFailed(result))
         {
             dialogService.ShowInformation("Success", "GreenLuma has been successfully uninstalled.");
         }
-        else
-        {
-            dialogService.ShowWarning("Failed", result.Errors.Single().Message);
-        }
-
-        if (result.IsSuccess)
-        {
-            IsGreenLumaInstalled = false;
-        }
-
-        Mouse.OverrideCursor = null;
     }
 
     private void InstallUninstallGreenLumaMenuItem_Click(object sender, RoutedEventArgs e)
