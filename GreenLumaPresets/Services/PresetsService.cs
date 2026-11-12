@@ -130,7 +130,65 @@ public class PresetsService : IPresetsService
         if (appId == null) return;
 
         dbContext.AppIds.Remove(appId);
+        foreach (var preset in dbContext.Presets.Where(p => p.IconAppId == idToDelete))
+        {
+            preset.IconAppId = null;
+        }
         dbContext.SaveChanges();
+    }
+
+    public Result SetPresetIcon(Guid presetId, Guid? appId)
+    {
+        var preset = dbContext.Presets.FirstOrDefault(p => p.Id == presetId);
+        if (preset == null) return Result.Fail("This preset no longer exists");
+
+        if (appId != null && !dbContext.AppIds.Any(a => a.Id == appId && a.PresetId == presetId))
+            return Result.Fail("This AppID is not in the preset");
+
+        preset.IconAppId = appId;
+        dbContext.SaveChanges();
+        return Result.Ok();
+    }
+
+    public string? GetAppIdName(Guid appId)
+    {
+        return dbContext.AppIds.FirstOrDefault(a => a.Id == appId)?.Name;
+    }
+
+    public Result<string?> UpdateAppIdName(Guid appId, string? name)
+    {
+        var appIdToUpdate = dbContext.AppIds.FirstOrDefault(a => a.Id == appId);
+        if (appIdToUpdate == null) return Result.Fail("This AppID no longer exists");
+
+        appIdToUpdate.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        dbContext.SaveChanges();
+        return Result.Ok(appIdToUpdate.Name);
+    }
+
+    /// <summary>
+    /// Applies Steam details to every AppID with a matching value, in all presets.
+    /// Names are only filled when missing, so names typed by the user are kept; icons are replaced.
+    /// </summary>
+    /// <returns>The App IDs that changed.</returns>
+    public List<AppId> ApplyAppDetails(IReadOnlyDictionary<uint, SteamAppDetails> details)
+    {
+        if (details.Count == 0) return [];
+
+        var values = details.Keys.Select(k => k.ToString()).ToList();
+        var changed = new List<AppId>();
+        foreach (var appId in dbContext.AppIds.Where(a => values.Contains(a.Value)).ToList())
+        {
+            var detail = details[uint.Parse(appId.Value)];
+            var name = appId.Name ?? detail.Name;
+            if (name == appId.Name && detail.IconUrl == appId.IconUrl) continue;
+
+            appId.Name = name;
+            appId.IconUrl = detail.IconUrl;
+            changed.Add(appId);
+        }
+
+        dbContext.SaveChanges();
+        return changed;
     }
 
     public string? GetAppIdValue(Guid appId)
@@ -152,6 +210,12 @@ public class PresetsService : IPresetsService
         if (dbContext.AppIds.Any(a => a.PresetId == presetId && a.Id != appId && a.Value == normalized))
             return Result.Fail($"AppID {normalized} is already in this preset");
 
+        if (appIdToUpdate.Value != normalized)
+        {
+            // The name and icon described the previous app.
+            appIdToUpdate.Name = null;
+            appIdToUpdate.IconUrl = null;
+        }
         appIdToUpdate.Value = normalized;
         dbContext.SaveChanges();
         return Result.Ok(normalized);

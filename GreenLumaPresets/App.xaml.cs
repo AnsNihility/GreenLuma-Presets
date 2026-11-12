@@ -117,6 +117,7 @@ public partial class App : Application
         services.AddTransient<IImportFromSteamDialog, ImportFromSteamDialog>();
         services.AddTransient<ImportFromSteamViewModel>();
         services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<IIconCache, IconCache>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<MainWindow>();
         services.AddSingleton<IDialogService, DialogService>();

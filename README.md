@@ -7,8 +7,9 @@ GreenLumaPresets is a WPF .NET 8 application designed to manage and manipulate p
 ## Features
 
 - **Create Presets**: Create new presets and add App IDs.
-- **Edit Presets**: Rename and delete existing presets.
-- **Manage App IDs**: Add, rename, and delete App IDs within presets.
+- **Edit Presets**: Rename and delete existing presets, and pick their icon.
+- **Manage App IDs**: Add, edit, name and delete App IDs within presets.
+- **Names and Icons**: App IDs show their Steam name and library icon, fetched automatically; presets show the icon of their first App ID or the one you pick.
 - **Import Presets**: Import a game and all its DLC from Steam (by AppID or by name), or AppIDs from the clipboard.
 - **Validation**: Invalid and duplicate AppIDs are rejected or skipped on import.
 - **GreenLuma Integration**: Load app lists, restart Steam, clear the app list and the Steam app cache.
@@ -74,9 +75,17 @@ dotnet run --project GreenLumaPresets
 
 ### Managing App IDs
 
-- **Add App ID**: Click the `Create App ID` button.
-- **Rename App ID**: Right-click on an App ID and select `Rename`.
+- **Add App ID**: Click the `Add` button below the App IDs.
+- **Edit App ID**: Right-click on an App ID and select `Edit AppID`. Its name and icon are fetched again.
+- **Rename App ID**: Right-click on an App ID and select `Rename`. Clear the name to get Steam's back at the next launch.
 - **Delete App ID**: Right-click on an App ID and select `Delete`.
+
+### Names and Icons
+
+Names and icons are fetched from Steam when App IDs are added, and at startup for App IDs without a name. Names you type are never overwritten.
+
+- **Preset icon**: Right-click on a preset, then `Icon`: `Automatic` uses the first App ID with an icon, or pick one of its App IDs' icons.
+- **Refresh**: Right-click on a preset and select `Refresh names and icons`.
 
 ### GreenLuma Integration
 
@@ -94,7 +103,7 @@ Settings are read from `appsettings.json`, next to the executable. The file is o
 | `GreenLumaArchiveSha256` | Optional SHA-256 the archive must match before it is extracted into the Steam folder. Strongly recommended. |
 | `MaxAppListSize` | Optional number of AppIDs supported by your GreenLuma version. Loading a bigger preset asks for confirmation. |
 
-Presets, logs (7 days kept) and the download cache are stored in `%LocalAppData%\GreenLumaPresets`. A `presets.db` left next to the executable by an older version is copied there on first launch.
+Presets, logs (7 days kept) and the download cache (GreenLuma archive, app icons) are stored in `%LocalAppData%\GreenLumaPresets`. A `presets.db` left next to the executable by an older version is copied there on first launch.
 
 The app runs without administrator rights. Windows only asks for permission when adding the Windows Defender exclusion and when installing an update.
 

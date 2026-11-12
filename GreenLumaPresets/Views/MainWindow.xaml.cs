@@ -40,7 +40,7 @@ public partial class MainWindow : Window
             CommitEdit(textBox);
             e.Handled = true;
         }
-        else if (e.Key == Key.Escape && textBox.DataContext is IEditable { IsEditing: true } editable)
+        else if (e.Key == Key.Escape && EditedItem(textBox) is { IsEditing: true } editable)
         {
             // Discard the typed text: the binding only pushes on LostFocus, so restore it from the source.
             textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
@@ -51,12 +51,15 @@ public partial class MainWindow : Window
 
     private void CommitEdit(TextBox textBox)
     {
-        if (textBox.DataContext is not IEditable { IsEditing: true } editable) return;
+        if (EditedItem(textBox) is not { IsEditing: true } editable) return;
 
         // The binding only pushes on LostFocus: push the typed text before saving it.
         textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         viewModel.CommitEditCommand.Execute(editable);
     }
+
+    private static IEditable? EditedItem(TextBox textBox)
+        => (EditBehavior.GetTarget(textBox) ?? textBox.DataContext) as IEditable;
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {

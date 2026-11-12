@@ -23,6 +23,12 @@ namespace GreenLumaPresets.Models.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Position")
                         .HasColumnType("INTEGER");
 
@@ -44,6 +50,9 @@ namespace GreenLumaPresets.Models.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("IconAppId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

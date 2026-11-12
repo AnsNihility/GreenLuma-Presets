@@ -19,6 +19,19 @@ public static class EditBehavior
 
     public static void SetIsEditing(DependencyObject element, bool value) => element.SetValue(IsEditingProperty, value);
 
+    /// <summary>
+    /// What the TextBox edits when it isn't its DataContext, e.g. the name of an AppID row.
+    /// </summary>
+    public static readonly DependencyProperty TargetProperty = DependencyProperty.RegisterAttached(
+        "Target",
+        typeof(object),
+        typeof(EditBehavior),
+        new PropertyMetadata(null));
+
+    public static object? GetTarget(DependencyObject element) => element.GetValue(TargetProperty);
+
+    public static void SetTarget(DependencyObject element, object? value) => element.SetValue(TargetProperty, value);
+
     private static void OnIsEditingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not TextBox textBox || e.NewValue is not true) return;
