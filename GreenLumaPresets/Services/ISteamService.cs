@@ -10,4 +10,9 @@ public interface ISteamService
     Task<Result<SteamApp>> GetAppData(int appId);
 
     Task<Result<List<SteamSearchResult>>> SearchAppsByName(string name);
+
+    /// <summary>
+    /// Gets the names and icons of many apps in a few requests. Apps unknown to Steam are left out.
+    /// </summary>
+    Task<Result<Dictionary<uint, SteamAppDetails>>> GetAppDetails(IEnumerable<uint> appIds);
 }

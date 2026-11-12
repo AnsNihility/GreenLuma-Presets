@@ -110,4 +110,22 @@ internal sealed class FakeSteamService : ISteamService
     }
 
     public Task<Result<List<SteamSearchResult>>> SearchAppsByName(string name) => Task.FromResult(SearchResults);
+
+    /// <summary>
+    /// Details known to the fake Steam; requested apps missing from it are left out of the answer.
+    /// </summary>
+    public Dictionary<uint, SteamAppDetails> Details { get; } = [];
+    public Result? DetailsFailure { get; set; }
+    public List<uint[]> DetailRequests { get; } = [];
+
+    public Task<Result<Dictionary<uint, SteamAppDetails>>> GetAppDetails(IEnumerable<uint> appIds)
+    {
+        var requested = appIds.ToArray();
+        DetailRequests.Add(requested);
+        if (DetailsFailure != null) return Task.FromResult(Result.Fail<Dictionary<uint, SteamAppDetails>>(DetailsFailure.Errors));
+
+        return Task.FromResult(Result.Ok(requested
+            .Where(Details.ContainsKey)
+            .ToDictionary(id => id, id => Details[id])));
+    }
 }
