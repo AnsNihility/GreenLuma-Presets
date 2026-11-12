@@ -127,6 +127,18 @@ public partial class MainViewModel : ObservableObject
         Presets.Remove(preset);
     }
 
+    [RelayCommand]
+    private void SetPresetIcon(PresetIconChoice? choice)
+    {
+        if (choice == null) return;
+
+        var appId = choice.AppId?.Id;
+        if (ShowIfFailed(presetsService.SetPresetIcon(choice.Preset.Id, appId)))
+        {
+            choice.Preset.IconAppId = appId;
+        }
+    }
+
     #endregion
 
     #region Inline editing
@@ -235,6 +247,7 @@ public partial class MainViewModel : ObservableObject
 
         presetsService.RemoveAppId(SelectedPreset.Id, appId.Id);
         appIds.RemoveAt(index);
+        if (SelectedPreset.IconAppId == appId.Id) SelectedPreset.IconAppId = null;
 
         SelectedAppId = appIds.Count == 0 ? null : appIds[Math.Min(index, appIds.Count - 1)];
     }

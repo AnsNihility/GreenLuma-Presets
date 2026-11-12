@@ -168,18 +168,48 @@
 
         <Grid Grid.Row="1" Grid.Column="0">
             <ListBox x:Name="PresetsListBox" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" d:ItemsSource="{d:SampleData ItemCount=5}" >
+                <ListBox.Resources>
+                    <ContextMenu x:Key="PresetMenu" x:Shared="False">
+                        <MenuItem Header="Rename" Command="{Binding Data.BeginEditCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
+                        <MenuItem Header="Icon" ItemsSource="{Binding IconChoices}">
+                            <MenuItem.ItemContainerStyle>
+                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                    <Setter Property="Command" Value="{Binding Data.SetPresetIconCommand, Source={StaticResource ViewModel}}"/>
+                                    <Setter Property="CommandParameter" Value="{Binding}"/>
+                                    <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}"/>
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                            <MenuItem.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"
+                                               Source="{Binding IconPath, Converter={StaticResource IconPathConverter}}"
+                                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </MenuItem.ItemTemplate>
+                        </MenuItem>
+                        <MenuItem Header="Refresh names and icons" Command="{Binding Data.RefreshAppDetailsCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
+                        <MenuItem Header="Delete" Command="{Binding Data.DeletePresetCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
+                    </ContextMenu>
+                </ListBox.Resources>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <TextBox Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0,0,0,0" Padding="0,0,0,0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus"
-                                 views:EditBehavior.IsEditing="{Binding IsEditing}">
-                            <TextBox.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Rename" Command="{Binding Data.BeginEditCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
-                                    <MenuItem Header="Refresh names and icons" Command="{Binding Data.RefreshAppDetailsCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
-                                    <MenuItem Header="Delete" Command="{Binding Data.DeletePresetCommand, Source={StaticResource ViewModel}}" CommandParameter="{Binding}"/>
-                                </ContextMenu>
-                            </TextBox.ContextMenu>
-                        </TextBox>
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Image Grid.Column="0" Width="16" Height="16" Margin="1,0,6,0" VerticalAlignment="Center"
+                                   Source="{Binding IconPath, Converter={StaticResource IconPathConverter}}"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <TextBox Grid.Column="1" Text="{Binding Name}" Style="{StaticResource RenameArea}" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Stretch" Margin="0" Padding="0" KeyDown="TextBox_KeyDown" LostFocus="TextBox_LostFocus"
+                                     views:EditBehavior.IsEditing="{Binding IsEditing}" ContextMenu="{StaticResource PresetMenu}"/>
+                            <Grid.ContextMenu>
+                                <StaticResource ResourceKey="PresetMenu"/>
+                            </Grid.ContextMenu>
+                        </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

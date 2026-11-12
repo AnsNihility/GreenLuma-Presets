@@ -187,4 +187,72 @@ public sealed class MainViewModelAppDetailsTests : IDisposable
         Assert.Equal("Couldn't connect to Steam API", shown.Message);
         Assert.False(viewModel.IsBusy);
     }
+
+    [Fact]
+    public async Task PresetIcon_IsTheFirstAppIdIconUntilOneIsPicked()
+    {
+        steam.Details[730] = new SteamAppDetails("Counter-Strike 2", "https://icons/730.jpg");
+        steam.Details[323180] = new SteamAppDetails("Portal 2 Soundtrack", "https://icons/apps/620/hash.jpg");
+        steam.Details[620] = new SteamAppDetails("Portal 2", "https://icons/apps/620/hash.jpg");
+        presetsService.AddAppIds(presetsService.AddPreset("Preset").Id, ["400", "323180", "620", "730"]);
+        var viewModel = await CreateViewModelAsync();
+        var preset = viewModel.SelectedPreset!;
+
+        Assert.Equal("cache/https://icons/apps/620/hash.jpg", preset.IconPath);
+        // Portal has no icon and the soundtrack shows Portal 2's: one entry per distinct icon, named after its app.
+        Assert.Equal(["Automatic", "Portal 2 (620)", "Counter-Strike 2 (730)"], preset.IconChoices.Select(c => c.Label));
+        Assert.True(preset.IconChoices[0].IsSelected);
+
+        viewModel.SetPresetIconCommand.Execute(preset.IconChoices[2]);
+
+        Assert.Equal("cache/https://icons/730.jpg", preset.IconPath);
+        Assert.True(preset.IconChoices[2].IsSelected);
+        Assert.Equal(preset.IconAppId, dbContext.Presets.AsNoTracking().Single().IconAppId);
+    }
+
+    [Fact]
+    public async Task PresetIcon_DeletingThePickedAppId_GoesBackToAutomatic()
+    {
+        steam.Details[730] = new SteamAppDetails("Counter-Strike 2", "https://icons/730.jpg");
+        presetsService.AddAppIds(presetsService.AddPreset("Preset").Id, ["620", "730"]);
+        var viewModel = await CreateViewModelAsync();
+        var preset = viewModel.SelectedPreset!;
+        viewModel.SetPresetIconCommand.Execute(preset.IconChoices.Single(c => c.AppId?.Value == "730"));
+
+        viewModel.DeleteAppIdCommand.Execute(preset.AppIds[1]);
+
+        Assert.Null(preset.IconAppId);
+        Assert.Equal($"cache/{PortalIcon}", preset.IconPath);
+        Assert.Null(dbContext.Presets.AsNoTracking().Single().IconAppId);
+    }
+
+    [Fact]
+    public async Task PresetIcon_NotifiesWhenAnAppIdIconArrives()
+    {
+        presetsService.AddPreset("Preset");
+        var viewModel = await CreateViewModelAsync();
+        var preset = viewModel.SelectedPreset!;
+        var changed = new List<string?>();
+        preset.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        clipboard.Text = "620";
+
+        await viewModel.ImportAppIdsFromClipboardCommand.ExecuteAsync(null);
+
+        Assert.Contains(nameof(PresetItemViewModel.IconPath), changed);
+        Assert.Equal($"cache/{PortalIcon}", preset.IconPath);
+    }
+
+    [Fact]
+    public async Task PresetIcon_IsRestoredAtStartup()
+    {
+        steam.Details[730] = new SteamAppDetails("Counter-Strike 2", "https://icons/730.jpg");
+        var stored = presetsService.AddPreset("Preset");
+        var appIds = presetsService.AddAppIds(stored.Id, ["620", "730"]);
+        presetsService.ApplyAppDetails(steam.Details);
+        presetsService.SetPresetIcon(stored.Id, appIds[1].Id);
+
+        var viewModel = await CreateViewModelAsync();
+
+        Assert.Equal("cache/https://icons/730.jpg", viewModel.SelectedPreset!.IconPath);
+    }
 }

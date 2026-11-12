@@ -233,7 +233,14 @@
                             <Border x:Name="MenuItemBorder"
                                     Background="{TemplateBinding Background}"
                                     Padding="{TemplateBinding Padding}">
-                                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="Marker" Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                </Grid>
                             </Border>
                             <Popup x:Name="PART_Popup"
                                    Placement="Bottom"
@@ -250,6 +257,15 @@
                             </Popup>
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="Role" Value="SubmenuHeader">
+                                <Setter TargetName="PART_Popup" Property="Placement" Value="Right"/>
+                                <Setter TargetName="Marker" Property="Text" Value="&#x25B8;"/>
+                                <Setter TargetName="Marker" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Marker" Property="Text" Value="&#x2713;"/>
+                                <Setter TargetName="Marker" Property="Visibility" Value="Visible"/>
+                            </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="{DynamicResource SteamMutedText}"/>
                                 <Setter Property="Opacity" Value="0.5"/>
