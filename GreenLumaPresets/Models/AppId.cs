@@ -1,4 +1,4 @@
-﻿namespace GreenLumaPresets.Models;
+namespace GreenLumaPresets.Models;
 
 public class AppId
 {
@@ -10,6 +10,16 @@ public class AppId
     /// Order of the AppID inside its preset.
     /// </summary>
     public int Position { get; set; }
+
+    /// <summary>
+    /// Display name, filled from Steam or typed by the user.
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// URL of the small icon Steam shows in the library, when the app has one.
+    /// </summary>
+    public string? IconUrl { get; set; }
 
     public Preset? Preset { get; set; }
 }

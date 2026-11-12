@@ -157,4 +157,90 @@ public sealed class PresetsServiceTests : IDisposable
         Assert.Equal(["730"], presets["Second"].Select(a => a.Value));
         Assert.Empty(presets["Empty"]);
     }
+
+    [Fact]
+    public void ApplyAppDetails_FillsMissingNamesKeepsTypedOnesAndReplacesIcons()
+    {
+        var first = service.AddPreset("First");
+        var second = service.AddPreset("Second");
+        var typed = service.AddAppIds(first.Id, ["620", "400"])[0];
+        service.UpdateAppIdName(typed.Id, "My Portal 2");
+        service.AddAppIds(second.Id, ["620", "730"]);
+
+        var changed = service.ApplyAppDetails(new Dictionary<uint, SteamAppDetails>
+        {
+            [620] = new("Portal 2", "https://icons/620.jpg"),
+            [400] = new("Portal", null),
+        });
+
+        Assert.Equal(3, changed.Count);
+        var all = dbContext.AppIds.AsNoTracking().ToList();
+        Assert.Equal(["My Portal 2", "Portal 2"], all.Where(a => a.Value == "620").Select(a => a.Name).Order());
+        Assert.All(all.Where(a => a.Value == "620"), a => Assert.Equal("https://icons/620.jpg", a.IconUrl));
+        Assert.Equal("Portal", all.Single(a => a.Value == "400").Name);
+        Assert.Null(all.Single(a => a.Value == "730").Name);
+    }
+
+    [Fact]
+    public void ApplyAppDetails_NothingNew_ReportsNoChange()
+    {
+        var preset = service.AddPreset("Test");
+        service.AddAppIds(preset.Id, ["620"]);
+        var details = new Dictionary<uint, SteamAppDetails> { [620] = new("Portal 2", "https://icons/620.jpg") };
+        service.ApplyAppDetails(details);
+
+        Assert.Empty(service.ApplyAppDetails(details));
+    }
+
+    [Fact]
+    public void UpdateAppIdName_TrimsAndClearsBlankNames()
+    {
+        var preset = service.AddPreset("Test");
+        var appId = service.AddAppIds(preset.Id, ["620"])[0];
+
+        Assert.Equal("Portal 2", service.UpdateAppIdName(appId.Id, "  Portal 2 ").Value);
+        Assert.Null(service.UpdateAppIdName(appId.Id, "   ").Value);
+        Assert.Null(service.GetAppIdName(appId.Id));
+    }
+
+    [Fact]
+    public void UpdateAppId_NewValue_ClearsTheNameAndIcon()
+    {
+        var preset = service.AddPreset("Test");
+        var appId = service.AddAppIds(preset.Id, ["620"])[0];
+        service.ApplyAppDetails(new Dictionary<uint, SteamAppDetails> { [620] = new("Portal 2", "https://icons/620.jpg") });
+
+        service.UpdateAppId(preset.Id, appId.Id, "620");
+        Assert.Equal("Portal 2", service.GetAppIdName(appId.Id));
+
+        service.UpdateAppId(preset.Id, appId.Id, "400");
+        var stored = dbContext.AppIds.AsNoTracking().Single();
+        Assert.Null(stored.Name);
+        Assert.Null(stored.IconUrl);
+    }
+
+    [Fact]
+    public void SetPresetIcon_OnlyAcceptsAnAppIdOfThePreset()
+    {
+        var preset = service.AddPreset("Test");
+        var other = service.AddPreset("Other");
+        var own = service.AddAppIds(preset.Id, ["620"])[0];
+        var foreign = service.AddAppIds(other.Id, ["400"])[0];
+
+        Assert.True(service.SetPresetIcon(preset.Id, own.Id).IsSuccess);
+        Assert.True(service.SetPresetIcon(preset.Id, foreign.Id).IsFailed);
+        Assert.Equal(own.Id, dbContext.Presets.AsNoTracking().Single(p => p.Id == preset.Id).IconAppId);
+    }
+
+    [Fact]
+    public void RemoveAppId_ResetsThePresetIconItWasUsedFor()
+    {
+        var preset = service.AddPreset("Test");
+        var appId = service.AddAppIds(preset.Id, ["620", "400"])[0];
+        service.SetPresetIcon(preset.Id, appId.Id);
+
+        service.RemoveAppId(preset.Id, appId.Id);
+
+        Assert.Null(dbContext.Presets.AsNoTracking().Single().IconAppId);
+    }
 }
