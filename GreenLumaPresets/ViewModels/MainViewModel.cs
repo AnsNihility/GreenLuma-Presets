@@ -15,6 +15,8 @@ public partial class MainViewModel : ObservableObject
     private readonly IDialogService dialogService;
     private readonly IImportFromSteamDialog importFromSteamDialog;
     private readonly IClipboardService clipboardService;
+    private readonly ISteamService steamService;
+    private readonly IIconCache iconCache;
     private readonly Settings settings;
 
     public MainViewModel(
@@ -24,6 +26,8 @@ public partial class MainViewModel : ObservableObject
         IDialogService dialogService,
         IImportFromSteamDialog importFromSteamDialog,
         IClipboardService clipboardService,
+        ISteamService steamService,
+        IIconCache iconCache,
         Settings settings)
     {
         this.presetsService = presetsService;
@@ -32,10 +36,27 @@ public partial class MainViewModel : ObservableObject
         this.dialogService = dialogService;
         this.importFromSteamDialog = importFromSteamDialog;
         this.clipboardService = clipboardService;
+        this.steamService = steamService;
+        this.iconCache = iconCache;
         this.settings = settings;
 
         Presets = new(presetsService.GetPresetsWithAppIds().Select(x => PresetItemViewModel.From(x.Key, x.Value)));
         RefreshGreenLumaState();
+        Initialization = InitializeAsync();
+    }
+
+    /// <summary>
+    /// Icons loading and names completion started at construction; never faults.
+    /// </summary>
+    public Task Initialization { get; }
+
+    private async Task InitializeAsync()
+    {
+        var appIds = Presets.SelectMany(p => p.AppIds).ToList();
+        await LoadIconsAsync(appIds);
+
+        // AppIDs added before names existed, or whose name was cleared, get Steam's.
+        await FetchAppDetailsAsync(appIds.Where(a => a.Name.Text.Length == 0), reportErrors: false);
     }
 
     public ObservableCollection<PresetItemViewModel> Presets { get; }
@@ -81,8 +102,8 @@ public partial class MainViewModel : ObservableObject
         SelectedPreset = preset;
     }
 
-    [RelayCommand]
-    private void ImportPreset()
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task ImportPresetAsync()
     {
         var app = importFromSteamDialog.Show();
         if (app is not { AppIds.Count: > 0 } || string.IsNullOrEmpty(app.Name)) return;
@@ -93,6 +114,8 @@ public partial class MainViewModel : ObservableObject
         var preset = PresetItemViewModel.From(newPreset, newAppIds);
         Presets.Add(preset);
         SelectedPreset = preset;
+
+        await FetchAppDetailsAsync(preset.AppIds, reportErrors: false);
     }
 
     [RelayCommand]
@@ -117,8 +140,8 @@ public partial class MainViewModel : ObservableObject
     /// <summary>
     /// Persists an inline edit once. Invalid values are reported and reverted to the stored value.
     /// </summary>
-    [RelayCommand]
-    private void CommitEdit(IEditable? item)
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task CommitEditAsync(IEditable? item)
     {
         if (item is not { IsEditing: true }) return;
 
@@ -135,10 +158,30 @@ public partial class MainViewModel : ObservableObject
                 break;
 
             case AppIdItemViewModel appId when SelectedPreset != null:
+                var previousValue = presetsService.GetAppIdValue(appId.Id);
                 var appIdResult = presetsService.UpdateAppId(SelectedPreset.Id, appId.Id, appId.Value);
-                appId.Value = ShowIfFailed(appIdResult.ToResult())
-                    ? appIdResult.Value
-                    : presetsService.GetAppIdValue(appId.Id) ?? appId.Value;
+                if (!ShowIfFailed(appIdResult.ToResult()))
+                {
+                    appId.Value = previousValue ?? appId.Value;
+                    break;
+                }
+
+                appId.Value = appIdResult.Value;
+                if (appIdResult.Value != previousValue)
+                {
+                    // The service cleared the name and icon of the previous app.
+                    appId.Name.Text = string.Empty;
+                    appId.IconUrl = null;
+                    appId.IconPath = null;
+                    await FetchAppDetailsAsync([appId], reportErrors: false);
+                }
+                break;
+
+            case AppIdNameViewModel name:
+                var nameResult = presetsService.UpdateAppIdName(name.AppId, name.Text);
+                name.Text = ShowIfFailed(nameResult.ToResult())
+                    ? nameResult.Value ?? string.Empty
+                    : presetsService.GetAppIdName(name.AppId) ?? string.Empty;
                 break;
         }
     }
@@ -156,6 +199,9 @@ public partial class MainViewModel : ObservableObject
                 break;
             case AppIdItemViewModel appId:
                 appId.Value = presetsService.GetAppIdValue(appId.Id) ?? appId.Value;
+                break;
+            case AppIdNameViewModel name:
+                name.Text = presetsService.GetAppIdName(name.AppId) ?? string.Empty;
                 break;
         }
     }
@@ -193,32 +239,34 @@ public partial class MainViewModel : ObservableObject
         SelectedAppId = appIds.Count == 0 ? null : appIds[Math.Min(index, appIds.Count - 1)];
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedPreset))]
-    private void ImportAppIdsFromSteam()
+    [RelayCommand(CanExecute = nameof(HasSelectedPreset), AllowConcurrentExecutions = true)]
+    private Task ImportAppIdsFromSteamAsync()
     {
         var app = importFromSteamDialog.Show();
-        if (app is not { AppIds.Count: > 0 }) return;
+        if (app is not { AppIds.Count: > 0 }) return Task.CompletedTask;
 
-        AddAppIdsToSelectedPreset(app.AppIds);
+        return AddAppIdsToSelectedPresetAsync(app.AppIds);
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedPreset))]
-    private void ImportAppIdsFromClipboard()
+    [RelayCommand(CanExecute = nameof(HasSelectedPreset), AllowConcurrentExecutions = true)]
+    private Task ImportAppIdsFromClipboardAsync()
     {
         var appIds = clipboardService.GetText()
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
-        AddAppIdsToSelectedPreset(appIds);
+        return AddAppIdsToSelectedPresetAsync(appIds);
     }
 
-    private void AddAppIdsToSelectedPreset(IReadOnlyCollection<string> appIds)
+    private async Task AddAppIdsToSelectedPresetAsync(IReadOnlyCollection<string> appIds)
     {
         if (SelectedPreset == null) return;
 
-        var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, appIds);
+        var newAppIds = presetsService.AddAppIds(SelectedPreset.Id, appIds)
+            .Select(AppIdItemViewModel.From)
+            .ToList();
         foreach (var appId in newAppIds)
         {
-            SelectedPreset.AppIds.Add(AppIdItemViewModel.From(appId));
+            SelectedPreset.AppIds.Add(appId);
         }
 
         var skipped = appIds.Count - newAppIds.Count;
@@ -228,6 +276,75 @@ public partial class MainViewModel : ObservableObject
                 "Import",
                 $"{newAppIds.Count} AppID(s) added.\n{skipped} skipped because they were invalid or already in the preset.");
         }
+
+        await FetchAppDetailsAsync(newAppIds, reportErrors: false);
+    }
+
+    /// <summary>
+    /// Fetches again the names and icons of the preset's AppIDs. Names typed by the user are kept.
+    /// </summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task RefreshAppDetailsAsync(PresetItemViewModel? preset)
+    {
+        preset ??= SelectedPreset;
+        if (preset == null) return;
+
+        using (Busy())
+        {
+            await FetchAppDetailsAsync(preset.AppIds, reportErrors: true);
+        }
+    }
+
+    /// <summary>
+    /// Gets names and icons from Steam, stores them and updates every row showing these AppIDs.
+    /// </summary>
+    private async Task FetchAppDetailsAsync(IEnumerable<AppIdItemViewModel> appIds, bool reportErrors)
+    {
+        var values = appIds
+            .Select(a => uint.TryParse(a.Value, out var value) ? value : 0)
+            .Where(value => value > 0)
+            .Distinct()
+            .ToList();
+        if (values.Count == 0) return;
+
+        var details = await steamService.GetAppDetails(values);
+        if (details.IsFailed)
+        {
+            if (reportErrors) ShowIfFailed(details.ToResult());
+            return;
+        }
+
+        var changed = presetsService.ApplyAppDetails(details.Value).ToDictionary(a => a.Id);
+        var updated = new List<AppIdItemViewModel>();
+        foreach (var item in Presets.SelectMany(p => p.AppIds))
+        {
+            if (!changed.TryGetValue(item.Id, out var appId)) continue;
+
+            // An edit in progress wins: it is saved over the fetched name.
+            if (!item.Name.IsEditing) item.Name.Text = appId.Name ?? string.Empty;
+            item.IconUrl = appId.IconUrl;
+            updated.Add(item);
+        }
+
+        await LoadIconsAsync(updated);
+    }
+
+    private Task LoadIconsAsync(IEnumerable<AppIdItemViewModel> appIds)
+        => Task.WhenAll(appIds.Select(LoadIconAsync));
+
+    private async Task LoadIconAsync(AppIdItemViewModel appId)
+    {
+        var url = appId.IconUrl;
+        if (url == null)
+        {
+            appId.IconPath = null;
+            return;
+        }
+
+        var path = await iconCache.GetAsync(url);
+
+        // The AppID may have changed while the icon was downloading.
+        if (appId.IconUrl == url) appId.IconPath = path;
     }
 
     #endregion
@@ -407,7 +524,8 @@ Quick start:
 3) Load and launch: use Load and launch Steam to restart Steam with the selected preset.
 
 Tips:
-- Right-click a preset or AppID to rename or delete.
+- Right-click a preset to rename it, delete it or refresh the names and icons of its AppIDs.
+- Right-click an AppID to edit it, rename it or delete it. Names and icons come from Steam; a cleared name gets Steam's back at the next launch.
 - Clear IDs from GreenLuma removes the current AppList in Steam.
 - Check for Updates is under Help.";
 

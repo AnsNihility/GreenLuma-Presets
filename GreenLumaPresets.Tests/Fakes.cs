@@ -129,3 +129,14 @@ internal sealed class FakeSteamService : ISteamService
             .ToDictionary(id => id, id => Details[id])));
     }
 }
+
+internal sealed class FakeIconCache : IIconCache
+{
+    public List<string> Requested { get; } = [];
+
+    public Task<string?> GetAsync(string url)
+    {
+        Requested.Add(url);
+        return Task.FromResult<string?>($"cache/{url}");
+    }
+}

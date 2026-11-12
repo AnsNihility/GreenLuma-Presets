@@ -17,6 +17,8 @@ public sealed class MainViewModelTests : IDisposable
     private readonly FakeImportFromSteamDialog importDialog = new();
     private readonly FakeClipboardService clipboard = new();
     private readonly FakeUpdateService updates = new();
+    private readonly FakeSteamService steam = new();
+    private readonly FakeIconCache icons = new();
 
     public MainViewModelTests()
     {
@@ -34,7 +36,7 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     private MainViewModel CreateViewModel(Settings? settings = null) => new(
-        presetsService, greenLuma, updates, dialogs, importDialog, clipboard, settings ?? new Settings());
+        presetsService, greenLuma, updates, dialogs, importDialog, clipboard, steam, icons, settings ?? new Settings());
 
     private MainViewModel CreateWithPreset(params string[] appIds)
     {
