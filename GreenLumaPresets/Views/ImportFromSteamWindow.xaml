@@ -12,7 +12,18 @@
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="WidthAndHeight"
+        FocusManager.FocusedElement="{Binding ElementName=AppNameTextBox}">
+    <Window.Style>
+        <Style TargetType="Window">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                    <Setter Property="Cursor" Value="Wait"/>
+                    <Setter Property="ForceCursor" Value="True"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Style>
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="32"
                             ResizeBorderThickness="6"
@@ -20,6 +31,19 @@
                             GlassFrameThickness="0"/>
     </shell:WindowChrome.WindowChrome>
     <Window.Resources>
+        <!-- Hint shown over a TextBox while it is empty; Tag is bound to the TextBox text. -->
+        <Style x:Key="Watermark" TargetType="TextBlock">
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamMutedText}"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <Trigger Property="Tag" Value="">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="TitleBarButton" TargetType="Button">
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
@@ -110,9 +134,16 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Search by name" Padding="0"/>
-                <TextBox x:Name="AppNameTextBox" Grid.Row="1" Grid.Column="0" Margin="0,0,5,5" Text="e.g., Counter-Strike 2" Foreground="{DynamicResource SteamMutedText}" GotFocus="AppNameTextBox_GotFocus" LostFocus="AppNameTextBox_LostFocus"/>
-                <Button Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" Content="Search" Click="SearchButton_Click"/>
-                <ListBox x:Name="SearchResultsListBox" Grid.Row="2" Grid.ColumnSpan="2" MinHeight="80" MaxHeight="160" ItemsSource="{Binding SearchResults}" SelectionChanged="SearchResultsListBox_SelectionChanged">
+                <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,5,5">
+                    <TextBox x:Name="AppNameTextBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <TextBlock Text="e.g., Counter-Strike 2" Style="{StaticResource Watermark}" Tag="{Binding Text, ElementName=AppNameTextBox}"/>
+                </Grid>
+                <Button Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" Content="Search" Command="{Binding SearchCommand}"/>
+                <ListBox Grid.Row="2" Grid.ColumnSpan="2" MinHeight="80" MaxHeight="160" ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedSearchResult}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
@@ -128,12 +159,19 @@
 
             <StackPanel Grid.Row="2" Margin="0,0,0,5">
                 <Label Content="AppID" Padding="0"/>
-                <TextBox x:Name="AppIdTextBox" Text="e.g., 730" Foreground="{DynamicResource SteamMutedText}" GotFocus="AppIdTextBox_GotFocus" LostFocus="AppIdTextBox_LostFocus"/>
+                <Grid>
+                    <TextBox x:Name="AppIdTextBox" Text="{Binding AppIdText, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding ConfirmCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <TextBlock Text="e.g., 730" Style="{StaticResource Watermark}" Tag="{Binding Text, ElementName=AppIdTextBox}"/>
+                </Grid>
             </StackPanel>
             <Label Content="{Binding ErrorMessage, Mode=OneWay}" Grid.Row="3" Foreground="Red" Padding="0" FontSize="10" Margin="0,0,0,10"/>
             <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
-                <Button Content="OK" Margin="0,0,0,0" Click="OkButton_Click"/>
-                <Button Content="Cancel" Click="CancelButton_Click"/>
+                <Button Content="OK" Margin="0,0,0,0" Command="{Binding ConfirmCommand}"/>
+                <Button Content="Cancel" IsCancel="True"/>
             </StackPanel>
         </Grid>
     </Grid>

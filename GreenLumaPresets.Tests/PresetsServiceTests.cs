@@ -1,4 +1,4 @@
-using GreenLumaPresets.Controllers;
+using GreenLumaPresets.Services;
 using GreenLumaPresets.Models;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -119,6 +119,27 @@ public sealed class PresetsServiceTests : IDisposable
 
         Assert.Single(dbContext.AppIds);
         Assert.Equal(["Kept"], service.GetPresets().Select(p => p.Name));
+    }
+
+    [Fact]
+    public void Database_RejectsAppIdWithoutPreset()
+    {
+        dbContext.AppIds.Add(new AppId { Id = Guid.NewGuid(), PresetId = Guid.NewGuid(), Value = "620" });
+
+        Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+    }
+
+    [Fact]
+    public void Database_CascadesPresetDeletionToItsAppIds()
+    {
+        var preset = service.AddPreset("Test");
+        service.AddAppIds(preset.Id, ["620", "400"]);
+        dbContext.ChangeTracker.Clear();
+
+        // Bypass EF's own cascade to check the database constraint.
+        dbContext.Database.ExecuteSql($"DELETE FROM Presets WHERE Id = {preset.Id}");
+
+        Assert.Empty(dbContext.AppIds);
     }
 
     [Fact]

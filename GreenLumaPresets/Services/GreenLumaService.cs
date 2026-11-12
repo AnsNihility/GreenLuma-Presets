@@ -12,9 +12,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace GreenLumaPresets.Controllers;
+namespace GreenLumaPresets.Services;
 
-public class GreenLumaService
+public class GreenLumaService : IGreenLumaService
 {
     private readonly AppDbContext dbContext;
     private readonly ILogger<GreenLumaService> logger;

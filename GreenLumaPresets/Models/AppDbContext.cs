@@ -19,6 +19,12 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppId>().HasIndex(a => new { a.PresetId, a.Position });
+
+        modelBuilder.Entity<Preset>()
+            .HasMany(p => p.AppIds)
+            .WithOne(a => a.Preset)
+            .HasForeignKey(a => a.PresetId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

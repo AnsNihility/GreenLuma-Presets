@@ -3,9 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentResults;
 
-namespace GreenLumaPresets.Controllers;
+namespace GreenLumaPresets.Services;
 
-public class SteamService
+public class SteamService : ISteamService
 {
     private const string ConnectionErrorMessage = "Couldn't connect to Steam API";
 
